@@ -3,13 +3,12 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
 from .models import MaidProfile, MaidAvailability
-from .serializers import (
-    MaidProfileSerializer, MaidProfileUpdateSerializer,
-    MaidProfileListSerializer, MaidAvailabilitySerializer
-)
-from homeowner.models import Review, ClosedJob, HomeownerProfile
-
-
+from .serializers import MaidProfileSerializer, MaidProfileUpdateSerializer
+from .serializers import MaidProfileListSerializer, MaidAvailabilitySerializer
+from homeowner.models import HomeownerProfile, ClosedJob, Review
+import csv
+from datetime import date
+from django.http import HttpResponse
 class IsMaidOwner(permissions.BasePermission):
     """
     Custom permission to only allow maids to edit their own profile
@@ -168,6 +167,59 @@ class MaidProfileViewSet(viewsets.ModelViewSet):
                 'created_at': cj.created_at,
             })
         return Response(data)
+
+    @action(detail=False, methods=['get'], permission_classes=[permissions.IsAuthenticated])
+    def admin_stats(self, request):
+        """Aggregate counts for admin dashboard."""
+        # Authorize admin by either is_staff or custom user_type == 'admin'
+        user_type = getattr(request.user, 'user_type', '')
+        if not (getattr(request.user, 'is_staff', False) or user_type == 'admin'):
+            return Response({'detail': 'Not authorized'}, status=status.HTTP_403_FORBIDDEN)
+        total_maids = MaidProfile.objects.count()
+        verified_maids = MaidProfile.objects.filter(is_verified=True).count()
+        unverified_maids = total_maids - verified_maids
+        total_homeowners = HomeownerProfile.objects.count()
+        temp_available = MaidProfile.objects.filter(category='temporary', availability_status=True).count()
+        live_in_available = MaidProfile.objects.filter(category='live_in', availability_status=True).count()
+        completed_jobs = ClosedJob.objects.count()
+        return Response({
+            'total_maids': total_maids,
+            'verified_maids': verified_maids,
+            'unverified_maids': unverified_maids,
+            'total_homeowners': total_homeowners,
+            'temporary_available_maids': temp_available,
+            'live_in_available_maids': live_in_available,
+            'completed_jobs': completed_jobs,
+        })
+
+    @action(detail=False, methods=['get'], permission_classes=[permissions.IsAuthenticated])
+    def export_maids(self, request):
+        """Export maids to CSV: Name, Age, Gender, Phone number, Location."""
+        user_type = getattr(request.user, 'user_type', '')
+        if not (getattr(request.user, 'is_staff', False) or user_type == 'admin'):
+            return Response({'detail': 'Not authorized'}, status=status.HTTP_403_FORBIDDEN)
+
+        def calc_age(dob):
+            try:
+                if not dob:
+                    return ''
+                today = date.today()
+                return today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
+            except Exception:
+                return ''
+
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = 'attachment; filename="maids_export.csv"'
+        writer = csv.writer(response)
+        writer.writerow(['Name', 'Age', 'Gender', 'Phone number', 'Location'])
+        for m in MaidProfile.objects.select_related('user').all():
+            name = m.full_name or getattr(m.user, 'full_name', '') or m.user.username
+            age = calc_age(m.date_of_birth)
+            gender = getattr(m.user, 'gender', '') or ''
+            phone = m.phone_number or getattr(m.user, 'phone_number', '') or ''
+            location = m.location or ''
+            writer.writerow([name, age, gender, phone, location])
+        return response
     
     @action(detail=True, methods=['post'], permission_classes=[permissions.IsAdminUser])
     def verify(self, request, pk=None):

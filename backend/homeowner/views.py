@@ -10,6 +10,8 @@ from .serializers import (
     ReviewSerializer, ReviewCreateSerializer
 )
 from maid.models import MaidProfile
+import csv
+from django.http import HttpResponse
 
 
 class IsHomeownerOwner(permissions.BasePermission):
@@ -78,6 +80,29 @@ class HomeownerProfileViewSet(viewsets.ModelViewSet):
                 'profile_photo': maid.profile_photo.url if maid.profile_photo else None,
             })
         return Response(data)
+
+    @action(detail=False, methods=['get'])
+    def export_homeowners(self, request):
+        """Export homeowners to CSV: Name, Phone number, Home address, Gender, Email."""
+        user = request.user
+        user_type = getattr(user, 'user_type', '')
+        if not (getattr(user, 'is_staff', False) or user_type == 'admin'):
+            return Response({'detail': 'Not authorized'}, status=status.HTTP_403_FORBIDDEN)
+
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = 'attachment; filename="homeowners_export.csv"'
+        writer = csv.writer(response)
+        writer.writerow(['Name', 'Phone number', 'Home address', 'Gender', 'Email'])
+        qs = HomeownerProfile.objects.select_related('user').all()
+        for hp in qs:
+            u = hp.user
+            name = getattr(u, 'full_name', '') or u.username
+            phone = getattr(u, 'phone_number', '') or ''
+            address = getattr(hp, 'home_address', '') or ''
+            gender = getattr(u, 'gender', '') or ''
+            email = getattr(u, 'email', '') or ''
+            writer.writerow([name, phone, address, gender, email])
+        return response
 
     @action(detail=True, methods=['post'])
     def verify(self, request, pk=None):
