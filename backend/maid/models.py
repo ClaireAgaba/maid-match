@@ -23,6 +23,11 @@ class MaidProfile(models.Model):
     bio = models.TextField(blank=True, null=True)
     experience_years = models.IntegerField(default=0)
     hourly_rate = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    CATEGORY_CHOICES = (
+        ('temporary', 'Temporary'),  # come work and go
+        ('live_in', 'Live-in'),      # moves in with the homeowner
+    )
+    category = models.CharField(max_length=20, choices=CATEGORY_CHOICES, null=True, blank=True)
     skills = models.TextField(help_text="Comma-separated skills", blank=True, null=True)
     availability_status = models.BooleanField(default=True)
     rating = models.DecimalField(max_digits=3, decimal_places=2, default=0.00)

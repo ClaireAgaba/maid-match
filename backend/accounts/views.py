@@ -92,6 +92,21 @@ class UserLoginView(APIView):
             user = authenticate(request, username=username, password=password)
             
             if user is not None:
+                # Block login if homeowner account is deactivated or maid account is disabled
+                try:
+                    if user.user_type == 'homeowner' and hasattr(user, 'homeowner_profile'):
+                        if not user.homeowner_profile.is_active:
+                            return Response({
+                                'error': 'Your account is blocked. Please contact the MaidMatch team for support.'
+                            }, status=status.HTTP_403_FORBIDDEN)
+                    if user.user_type == 'maid' and hasattr(user, 'maid_profile'):
+                        if not user.maid_profile.is_enabled:
+                            return Response({
+                                'error': 'Your account is blocked. Please contact the MaidMatch team for support.'
+                            }, status=status.HTTP_403_FORBIDDEN)
+                except Exception:
+                    # If any unexpected error occurs, continue to avoid masking login entirely
+                    pass
                 login(request, user)
                 return Response({
                     'message': 'Login successful',

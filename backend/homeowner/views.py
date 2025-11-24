@@ -2,7 +2,7 @@ from rest_framework import viewsets, status, permissions, filters
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
-from .models import HomeownerProfile, Job, JobApplication, Review
+from .models import HomeownerProfile, Job, JobApplication, Review, ClosedJob
 from .serializers import (
     HomeownerProfileSerializer, HomeownerProfileUpdateSerializer,
     JobSerializer, JobCreateUpdateSerializer, JobListSerializer,
@@ -33,6 +33,12 @@ class HomeownerProfileViewSet(viewsets.ModelViewSet):
         if self.action in ['update', 'partial_update']:
             return HomeownerProfileUpdateSerializer
         return HomeownerProfileSerializer
+
+    def get_permissions(self):
+        # Admin-only for verification/activation endpoints
+        if self.action in ['verify', 'unverify', 'activate', 'deactivate']:
+            return [permissions.IsAuthenticated(), permissions.IsAdminUser()]
+        return super().get_permissions()
     
     @action(detail=False, methods=['get'])
     def my_profile(self, request):
@@ -47,6 +53,70 @@ class HomeownerProfileViewSet(viewsets.ModelViewSet):
             return Response({
                 'error': 'Homeowner profile not found'
             }, status=status.HTTP_404_NOT_FOUND)
+
+    @action(detail=False, methods=['get'])
+    def recent_maids(self, request):
+        """Return recent maids this homeowner has closed jobs with."""
+        try:
+            hp = HomeownerProfile.objects.select_related('user').get(user=request.user)
+        except HomeownerProfile.DoesNotExist:
+            return Response({'detail': 'Homeowner profile not found'}, status=status.HTTP_404_NOT_FOUND)
+        qs = ClosedJob.objects.select_related('maid__user').filter(homeowner=hp).order_by('-created_at')[:10]
+        data = []
+        for cj in qs:
+            maid = cj.maid
+            user = maid.user
+            data.append({
+                'maid_id': maid.id,
+                'username': user.username,
+                'full_name': maid.full_name or user.username,
+                'phone_number': maid.phone_number,
+                'location': maid.location,
+                'rating': str(maid.rating),
+                'total_jobs_completed': maid.total_jobs_completed,
+                'created_at': cj.created_at,
+                'profile_photo': maid.profile_photo.url if maid.profile_photo else None,
+            })
+        return Response(data)
+
+    @action(detail=True, methods=['post'])
+    def verify(self, request, pk=None):
+        """Admin verifies a homeowner account"""
+        profile = self.get_object()
+        notes = request.data.get('verification_notes', '')
+        profile.is_verified = True
+        if notes:
+            profile.verification_notes = notes
+        profile.save()
+        return Response({'message': 'Homeowner verified', 'profile': HomeownerProfileSerializer(profile).data})
+
+    @action(detail=True, methods=['post'])
+    def unverify(self, request, pk=None):
+        """Admin removes verification"""
+        profile = self.get_object()
+        profile.is_verified = False
+        profile.save()
+        return Response({'message': 'Homeowner unverified', 'profile': HomeownerProfileSerializer(profile).data})
+
+    @action(detail=True, methods=['post'])
+    def activate(self, request, pk=None):
+        """Admin activates homeowner account"""
+        profile = self.get_object()
+        profile.is_active = True
+        profile.save()
+        return Response({'message': 'Homeowner activated', 'profile': HomeownerProfileSerializer(profile).data})
+
+    @action(detail=True, methods=['post'])
+    def deactivate(self, request, pk=None):
+        """Admin deactivates homeowner account"""
+        profile = self.get_object()
+        reason = request.data.get('reason', '')
+        profile.is_active = False
+        if reason:
+            existing = (profile.verification_notes or '')
+            profile.verification_notes = (existing + f"\nDeactivated reason: {reason}").strip()
+        profile.save()
+        return Response({'message': 'Homeowner deactivated', 'profile': HomeownerProfileSerializer(profile).data})
 
 
 class JobViewSet(viewsets.ModelViewSet):
@@ -238,7 +308,7 @@ class ReviewViewSet(viewsets.ModelViewSet):
     queryset = Review.objects.select_related('job', 'reviewer', 'reviewee').all()
     permission_classes = [permissions.IsAuthenticated]
     filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
-    filterset_fields = ['rating']
+    filterset_fields = ['rating', 'reviewee']
     ordering = ['-created_at']
     
     def get_serializer_class(self):
@@ -248,4 +318,38 @@ class ReviewViewSet(viewsets.ModelViewSet):
     
     def perform_create(self, serializer):
         # Automatically set the reviewer to the current user
-        serializer.save(reviewer=self.request.user)
+        review = serializer.save(reviewer=self.request.user)
+        # If reviewee is a maid, update maid's average rating
+        try:
+            if hasattr(review.reviewee, 'maid_profile'):
+                maid_profile = review.reviewee.maid_profile
+                from django.db.models import Avg
+                from decimal import Decimal, ROUND_HALF_UP
+                avg = Review.objects.filter(reviewee=review.reviewee).aggregate(Avg('rating'))['rating__avg'] or 0
+                maid_profile.rating = Decimal(str(avg)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+                maid_profile.save(update_fields=['rating'])
+        except Exception:
+            # Do not block response on rating update errors
+            pass
+
+    @action(detail=False, methods=['get'])
+    def mine(self, request):
+        """List reviews received by the current user (e.g., a maid seeing their reviews)."""
+        qs = self.queryset.filter(reviewee=request.user)
+        page = self.paginate_queryset(qs)
+        if page is not None:
+            serializer = ReviewSerializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        serializer = ReviewSerializer(qs, many=True)
+        return Response(serializer.data)
+
+    @action(detail=False, methods=['get'])
+    def given(self, request):
+        """List reviews the current user has written (e.g., homeowner history)."""
+        qs = self.queryset.filter(reviewer=request.user)
+        page = self.paginate_queryset(qs)
+        if page is not None:
+            serializer = ReviewSerializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        serializer = ReviewSerializer(qs, many=True)
+        return Response(serializer.data)

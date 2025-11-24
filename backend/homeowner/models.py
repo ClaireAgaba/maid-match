@@ -22,9 +22,14 @@ class HomeownerProfile(models.Model):
         ('any', 'Any'),
     ), default='any', blank=True, null=True)
     
+    # Account Status (Admin controlled)
+    is_verified = models.BooleanField(default=False, help_text="Account verified by admin")
+    is_active = models.BooleanField(default=True, help_text="Account active status. Can be deactivated by admin if needed.")
+    verification_notes = models.TextField(blank=True, null=True, help_text="Admin notes on verification status")
+    
     # Documents
-    id_document = models.FileField(upload_to='homeowner_documents/ids/', blank=True, null=True)
-    lc_letter = models.FileField(upload_to='homeowner_documents/lc_letters/', blank=True, null=True)
+    id_document = models.FileField(upload_to='homeowner_documents/ids/', blank=True, null=True, help_text="Upload a copy of government-issued ID")
+    lc_letter = models.FileField(upload_to='homeowner_documents/lc_letters/', blank=True, null=True, help_text="Letter of recommendation or LC letter (if applicable)")
     
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -107,9 +112,21 @@ class Review(models.Model):
     """
     Reviews for completed jobs
     """
-    job = models.OneToOneField(Job, on_delete=models.CASCADE, related_name='review')
+    # Job is optional to allow direct maid ratings outside of a specific job
+    job = models.ForeignKey(Job, on_delete=models.SET_NULL, null=True, blank=True, related_name='reviews')
     reviewer = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='reviews_given')
     reviewee = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='reviews_received')
+    # Sub-ratings (1-5 each)
+    punctuality = models.IntegerField(choices=[(i, i) for i in range(1, 6)], null=True, blank=True)
+    quality = models.IntegerField(choices=[(i, i) for i in range(1, 6)], null=True, blank=True, help_text="Cleanliness/Work Quality")
+    communication = models.IntegerField(choices=[(i, i) for i in range(1, 6)], null=True, blank=True, help_text="Communication/Respect")
+    reliability = models.IntegerField(choices=[(i, i) for i in range(1, 6)], null=True, blank=True)
+    # Homeowner-targeted subratings (1-5 each)
+    respect_communication = models.IntegerField(choices=[(i, i) for i in range(1, 6)], null=True, blank=True)
+    payment_timeliness = models.IntegerField(choices=[(i, i) for i in range(1, 6)], null=True, blank=True)
+    safety_environment = models.IntegerField(choices=[(i, i) for i in range(1, 6)], null=True, blank=True)
+    fairness_workload = models.IntegerField(choices=[(i, i) for i in range(1, 6)], null=True, blank=True)
+    # Overall rating stored for aggregation/compatibility
     rating = models.IntegerField(choices=[(i, i) for i in range(1, 6)])  # 1-5 stars
     comment = models.TextField(blank=True, null=True)
     
@@ -122,3 +139,17 @@ class Review(models.Model):
     
     def __str__(self):
         return f"Review by {self.reviewer.username} for {self.reviewee.username}"
+
+
+class ClosedJob(models.Model):
+    """Lightweight log when a homeowner closes a job with a maid."""
+    homeowner = models.ForeignKey(HomeownerProfile, on_delete=models.CASCADE, related_name='closed_jobs')
+    maid = models.ForeignKey('maid.MaidProfile', on_delete=models.CASCADE, related_name='closed_jobs')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'closed_jobs'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.homeowner.user.username} closed with {self.maid.user.username} at {self.created_at}"

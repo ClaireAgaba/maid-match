@@ -7,6 +7,7 @@ from .serializers import (
     MaidProfileSerializer, MaidProfileUpdateSerializer,
     MaidProfileListSerializer, MaidAvailabilitySerializer
 )
+from homeowner.models import Review, ClosedJob, HomeownerProfile
 
 
 class IsMaidOwner(permissions.BasePermission):
@@ -95,9 +96,78 @@ class MaidProfileViewSet(viewsets.ModelViewSet):
         """
         Get list of available maids
         """
-        queryset = self.get_queryset().filter(availability_status=True)
+        # Only surface maids that are verified, enabled, and opted-in as available
+        queryset = self.get_queryset().filter(
+            availability_status=True,
+            is_verified=True,
+            is_enabled=True,
+        )
         serializer = MaidProfileListSerializer(queryset, many=True)
         return Response(serializer.data)
+
+    @action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated])
+    def recompute_rating(self, request, pk=None):
+        """Recalculate and persist the maid's average rating from reviews."""
+        maid = self.get_object()
+        from django.db.models import Avg
+        from decimal import Decimal, ROUND_HALF_UP
+        avg = Review.objects.filter(reviewee=maid.user).aggregate(Avg('rating'))['rating__avg'] or 0
+        maid.rating = Decimal(str(avg)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+        maid.save(update_fields=['rating'])
+        return Response({'rating': str(maid.rating)})
+
+    @action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated])
+    def close_job(self, request, pk=None):
+        """Mark a connection as a closed job for this maid. Increments total_jobs_completed."""
+        maid = self.get_object()
+        maid.total_jobs_completed = (maid.total_jobs_completed or 0) + 1
+        maid.save(update_fields=['total_jobs_completed'])
+        # Log closed job if caller is a homeowner
+        try:
+            # Ensure the caller has a homeowner profile for logging purposes
+            if hasattr(request.user, 'homeowner_profile'):
+                homeowner = request.user.homeowner_profile
+            else:
+                homeowner, _ = HomeownerProfile.objects.get_or_create(user=request.user)
+            ClosedJob.objects.create(homeowner=homeowner, maid=maid)
+        except Exception:
+            # Do not fail the call due to logging issues
+            pass
+        return Response({'total_jobs_completed': maid.total_jobs_completed})
+
+    @action(detail=True, methods=['get'], permission_classes=[permissions.IsAuthenticated])
+    def recent_clients(self, request, pk=None):
+        """Return recent homeowners who closed jobs with this maid."""
+        maid = self.get_object()
+        qs = ClosedJob.objects.select_related('homeowner__user').filter(maid=maid).order_by('-created_at')[:10]
+        data = []
+        for cj in qs:
+            user = cj.homeowner.user
+            # Safely build profile picture URL if available
+            picture_url = None
+            try:
+                pic = getattr(user, 'profile_picture', None)
+                if pic and hasattr(pic, 'url'):
+                    # request may be needed to build absolute uri
+                    if hasattr(self.request, 'build_absolute_uri'):
+                        picture_url = self.request.build_absolute_uri(pic.url)
+                    else:
+                        picture_url = pic.url
+            except Exception:
+                picture_url = None
+            hp = cj.homeowner
+            data.append({
+                'homeowner_id': hp.id,
+                'username': user.username,
+                'full_name': getattr(user, 'full_name', '') or user.username,
+                'profile_picture': picture_url,
+                'home_address': getattr(hp, 'home_address', None),
+                'home_type': getattr(hp, 'home_type', None),
+                'number_of_rooms': getattr(hp, 'number_of_rooms', None),
+                'is_verified': getattr(hp, 'is_verified', False),
+                'created_at': cj.created_at,
+            })
+        return Response(data)
     
     @action(detail=True, methods=['post'], permission_classes=[permissions.IsAdminUser])
     def verify(self, request, pk=None):
