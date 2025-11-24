@@ -305,7 +305,7 @@ const ManageMaids = () => {
                   
                   {maid.hourly_rate && (
                     <span className="text-sm font-semibold text-gray-900">
-                      KSH {maid.hourly_rate}/hr
+                      UGX {maid.hourly_rate}/hr
                     </span>
                   )}
                 </div>
@@ -454,8 +454,8 @@ const ManageMaids = () => {
                     <p className="font-medium">{selectedMaid.experience_years} years</p>
                   </div>
                   <div>
-                    <p className="text-sm text-gray-600">Hourly Rate</p>
-                    <p className="font-medium">KSH {selectedMaid.hourly_rate || 'Not set'}</p>
+                    <p className="text-sm text-gray-600">Starting Pay</p>
+                    <p className="font-medium">UGX {selectedMaid.hourly_rate || 'Not set'}</p>
                   </div>
                   <div>
                     <p className="text-sm text-gray-600">Rating</p>

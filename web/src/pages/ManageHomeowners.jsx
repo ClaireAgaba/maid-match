@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { homeownerAPI } from '../services/api';
 import { 
   Users, Search, Filter, Eye, Home as HomeIcon,
-  MapPin, Phone, Mail, Calendar, X
+  MapPin, Phone, Mail, Calendar, X, CheckCircle2, CircleOff
 } from 'lucide-react';
 
 const ManageHomeowners = () => {
@@ -40,6 +40,56 @@ const ManageHomeowners = () => {
     } catch (error) {
       console.error('Error fetching homeowners:', error);
       setLoading(false);
+    }
+  };
+
+  const refreshAfterAction = async (updatedProfile) => {
+    // Update list and selected item in place for snappy UI
+    setHomeowners((prev) => prev.map(h => h.id === updatedProfile.id ? updatedProfile : h));
+    if (selectedHomeowner && selectedHomeowner.id === updatedProfile.id) {
+      setSelectedHomeowner(updatedProfile);
+    }
+  };
+
+  const handleVerify = async (homeowner) => {
+    try {
+      const notes = window.prompt('Optional: add verification notes', '');
+      const res = await homeownerAPI.verify(homeowner.id, notes || '');
+      await refreshAfterAction(res.data.profile);
+    } catch (e) {
+      console.error('Verify failed', e);
+      alert('Failed to verify homeowner');
+    }
+  };
+
+  const handleUnverify = async (homeowner) => {
+    try {
+      const res = await homeownerAPI.unverify(homeowner.id);
+      await refreshAfterAction(res.data.profile);
+    } catch (e) {
+      console.error('Unverify failed', e);
+      alert('Failed to unverify homeowner');
+    }
+  };
+
+  const handleActivate = async (homeowner) => {
+    try {
+      const res = await homeownerAPI.activate(homeowner.id);
+      await refreshAfterAction(res.data.profile);
+    } catch (e) {
+      console.error('Activate failed', e);
+      alert('Failed to activate homeowner');
+    }
+  };
+
+  const handleDeactivate = async (homeowner) => {
+    try {
+      const reason = window.prompt('Reason for deactivation (optional):', '');
+      const res = await homeownerAPI.deactivate(homeowner.id, reason || '');
+      await refreshAfterAction(res.data.profile);
+    } catch (e) {
+      console.error('Deactivate failed', e);
+      alert('Failed to deactivate homeowner');
     }
   };
 
@@ -151,6 +201,14 @@ const ManageHomeowners = () => {
                       <MapPin className="h-3 w-3 mr-1" />
                       {homeowner.user?.address || 'Location not set'}
                     </p>
+                    <div className="mt-2 flex items-center gap-2">
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${homeowner.is_verified ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                        {homeowner.is_verified ? 'Verified' : 'Not Verified'}
+                      </span>
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${homeowner.is_active ? 'bg-blue-100 text-blue-800' : 'bg-red-100 text-red-800'}`}>
+                        {homeowner.is_active ? 'Active' : 'Deactivated'}
+                      </span>
+                    </div>
                   </div>
                 </div>
 
@@ -177,13 +235,27 @@ const ManageHomeowners = () => {
                 </div>
 
                 {/* Actions */}
-                <button
-                  onClick={() => viewHomeownerDetails(homeowner)}
-                  className="w-full btn-primary flex items-center justify-center"
-                >
-                  <Eye className="h-4 w-4 mr-2" />
-                  View Details
-                </button>
+                <div className="flex flex-col gap-2">
+                  <button
+                    onClick={() => viewHomeownerDetails(homeowner)}
+                    className="w-full btn-primary flex items-center justify-center"
+                  >
+                    <Eye className="h-4 w-4 mr-2" />
+                    View Details
+                  </button>
+                  <div className="grid grid-cols-2 gap-2">
+                    {homeowner.is_verified ? (
+                      <button onClick={() => handleUnverify(homeowner)} className="btn-secondary text-xs">Unverify</button>
+                    ) : (
+                      <button onClick={() => handleVerify(homeowner)} className="btn-secondary text-xs">Verify</button>
+                    )}
+                    {homeowner.is_active ? (
+                      <button onClick={() => handleDeactivate(homeowner)} className="btn-secondary text-xs">Deactivate</button>
+                    ) : (
+                      <button onClick={() => handleActivate(homeowner)} className="btn-secondary text-xs">Activate</button>
+                    )}
+                  </div>
+                </div>
               </div>
             ))}
           </div>
@@ -229,6 +301,16 @@ const ManageHomeowners = () => {
                     {selectedHomeowner.user?.full_name || selectedHomeowner.user?.username}
                   </h3>
                   <p className="text-gray-600">{selectedHomeowner.user?.address}</p>
+                  <div className="mt-2 flex items-center gap-2">
+                    {selectedHomeowner.is_verified ? (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-green-100 text-green-800 text-xs font-medium"><CheckCircle2 className="h-3 w-3"/> Verified</span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-800 text-xs font-medium"><CircleOff className="h-3 w-3"/> Not Verified</span>
+                    )}
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${selectedHomeowner.is_active ? 'bg-blue-100 text-blue-800' : 'bg-red-100 text-red-800'}`}>
+                      {selectedHomeowner.is_active ? 'Active' : 'Deactivated'}
+                    </span>
+                  </div>
                 </div>
               </div>
 
@@ -283,6 +365,21 @@ const ManageHomeowners = () => {
 
             {/* Modal Footer */}
             <div className="border-t px-6 py-4 flex justify-end space-x-3">
+              {/* Admin action buttons */}
+              {selectedHomeowner && (
+                <div className="mr-auto flex items-center gap-2">
+                  {selectedHomeowner.is_verified ? (
+                    <button onClick={() => handleUnverify(selectedHomeowner)} className="btn-secondary">Unverify</button>
+                  ) : (
+                    <button onClick={() => handleVerify(selectedHomeowner)} className="btn-secondary">Verify</button>
+                  )}
+                  {selectedHomeowner.is_active ? (
+                    <button onClick={() => handleDeactivate(selectedHomeowner)} className="btn-secondary">Deactivate</button>
+                  ) : (
+                    <button onClick={() => handleActivate(selectedHomeowner)} className="btn-secondary">Activate</button>
+                  )}
+                </div>
+              )}
               <button
                 onClick={() => setShowModal(false)}
                 className="btn-secondary"

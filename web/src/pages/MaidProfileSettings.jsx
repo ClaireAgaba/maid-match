@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { maidAPI } from '../services/api';
+import { maidAPI, authAPI } from '../services/api';
 import { 
   User, Calendar, MapPin, Phone, Mail, Briefcase, 
   DollarSign, FileText, Upload, Camera, Save, 
@@ -23,11 +23,13 @@ const MaidProfileSettings = () => {
     location: '',
     phone_number: '',
     email: '',
+    gender: '',
     bio: '',
     
     // Professional Info
     experience_years: 0,
     hourly_rate: '',
+    category: '',
     skills: '',
     availability_status: true,
     
@@ -58,9 +60,11 @@ const MaidProfileSettings = () => {
         location: profile.location || '',
         phone_number: profile.phone_number || '',
         email: profile.email || '',
+        gender: profile.user?.gender || '',
         bio: profile.bio || '',
         experience_years: profile.experience_years || 0,
         hourly_rate: profile.hourly_rate || '',
+        category: profile.category || '',
         skills: profile.skills || '',
         availability_status: profile.availability_status ?? true,
         profile_photo: null,
@@ -143,6 +147,18 @@ const MaidProfileSettings = () => {
         formData.append('certificate', profileData.certificate);
       }
 
+      // First, update account-level fields (gender lives on User)
+      const userForm = new FormData();
+      if (profileData.gender) userForm.append('gender', profileData.gender);
+      try {
+        if ([...userForm.keys()].length > 0) {
+          await authAPI.updateUser(userForm);
+        }
+      } catch (err) {
+        console.error('Failed updating user info:', err);
+      }
+
+      // Then update maid profile fields
       await maidAPI.updateMyProfile(formData);
       
       setSuccess('Profile updated successfully!');
@@ -179,7 +195,7 @@ const MaidProfileSettings = () => {
           >
             ← Back to Dashboard
           </button>
-          <h1 className="text-3xl font-bold text-gray-900">Profile Settings</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Profile Settings</h1>
           <p className="mt-2 text-gray-600">
             Complete your profile to increase your chances of getting hired
           </p>
@@ -209,8 +225,8 @@ const MaidProfileSettings = () => {
               Profile Photo
             </h2>
             
-            <div className="flex items-center space-x-6">
-              <div className="flex-shrink-0">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-6 space-y-4 sm:space-y-0">
+              <div className="flex-shrink-0 self-center sm:self-auto">
                 {previewImages.profile_photo ? (
                   <img
                     src={previewImages.profile_photo}
@@ -225,7 +241,7 @@ const MaidProfileSettings = () => {
               </div>
               
               <div className="flex-1">
-                <label className="btn-primary cursor-pointer inline-flex items-center">
+                <label className="btn-primary cursor-pointer inline-flex items-center w-full sm:w-auto justify-center">
                   <Upload className="h-4 w-4 mr-2" />
                   Upload Photo
                   <input
@@ -295,6 +311,23 @@ const MaidProfileSettings = () => {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Gender
+                </label>
+                <select
+                  name="gender"
+                  className="input-field"
+                  value={profileData.gender}
+                  onChange={handleChange}
+                >
+                  <option value="">Select Gender</option>
+                  <option value="male">Male</option>
+                  <option value="female">Female</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
                   Email <span className="text-gray-400">(Optional)</span>
                 </label>
                 <input
@@ -310,7 +343,7 @@ const MaidProfileSettings = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Location *
                 </label>
-                <div className="flex space-x-2">
+                <div className="flex flex-col sm:flex-row sm:space-x-2 space-y-2 sm:space-y-0">
                   <input
                     type="text"
                     name="location"
@@ -353,7 +386,7 @@ const MaidProfileSettings = () => {
                         alert('Geolocation is not supported by your browser');
                       }
                     }}
-                    className="btn-secondary whitespace-nowrap"
+                    className="btn-secondary whitespace-nowrap w-full sm:w-auto"
                   >
                     📍 Detect
                   </button>
@@ -404,7 +437,7 @@ const MaidProfileSettings = () => {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Hourly Rate (KSH) *
+                  Starting Pay (UGX) *
                 </label>
                 <input
                   type="number"
@@ -413,10 +446,27 @@ const MaidProfileSettings = () => {
                   step="0.01"
                   required
                   className="input-field"
-                  placeholder="e.g., 500"
+                  placeholder="e.g., 100000"
                   value={profileData.hourly_rate}
                   onChange={handleChange}
                 />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Maid Category
+                </label>
+                <select
+                  name="category"
+                  className="input-field"
+                  value={profileData.category}
+                  onChange={handleChange}
+                >
+                  <option value="">Select Category</option>
+                  <option value="temporary">Temporary</option>
+                  <option value="live_in">Live-in</option>
+                </select>
+                <p className="mt-1 text-xs text-gray-500">Temporary: come work and go. Live-in: moves in with the homeowner.</p>
               </div>
 
               <div className="md:col-span-2">
@@ -552,18 +602,18 @@ const MaidProfileSettings = () => {
           </div>
 
           {/* Submit Button */}
-          <div className="flex justify-end space-x-4">
+          <div className="flex flex-col sm:flex-row justify-end gap-3 sm:gap-4">
             <button
               type="button"
               onClick={() => navigate('/dashboard')}
-              className="btn-secondary"
+              className="btn-secondary w-full sm:w-auto"
               disabled={saving}
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="btn-primary flex items-center"
+              className="btn-primary flex items-center justify-center w-full sm:w-auto"
               disabled={saving}
             >
               {saving ? (

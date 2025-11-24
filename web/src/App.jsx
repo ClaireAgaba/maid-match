@@ -9,6 +9,9 @@ import MaidProfileSettings from './pages/MaidProfileSettings';
 import HomeownerProfileSettings from './pages/HomeownerProfileSettings';
 import ManageMaids from './pages/ManageMaids';
 import ManageHomeowners from './pages/ManageHomeowners';
+import FindMaids from './pages/FindMaids';
+import MyMaidProfile from './pages/MyMaidProfile';
+import MyReviews from './pages/MyReviews';
 
 function App() {
   return (
@@ -63,6 +66,30 @@ function App() {
             element={
               <ProtectedRoute>
                 <ManageHomeowners />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/find-maids"
+            element={
+              <ProtectedRoute>
+                <FindMaids />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/my-profile"
+            element={
+              <ProtectedRoute>
+                <MyMaidProfile />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/my-reviews"
+            element={
+              <ProtectedRoute>
+                <MyReviews />
               </ProtectedRoute>
             }
           />

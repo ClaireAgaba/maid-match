@@ -78,23 +78,33 @@ export const authAPI = {
 // Maid API
 export const maidAPI = {
   getAll: (params) => api.get('/maid/profiles/', { params }),
-  getById: (id) => api.get(`/maid/profiles/${id}/`),
   getMyProfile: () => api.get('/maid/profiles/me/'),
   updateMyProfile: (data) => api.patch('/maid/profiles/me/', data),
   update: (id, data) => api.put(`/maid/profiles/${id}/`, data),
   getAvailable: () => api.get('/maid/profiles/available/'),
+  recomputeRating: (id) => api.post(`/maid/profiles/${id}/recompute_rating/`),
+  closeJob: (id) => api.post(`/maid/profiles/${id}/close_job/`),
+  recentClients: (id) => api.get(`/maid/profiles/${id}/recent_clients/`),
+  adminStats: () => api.get('/maid/profiles/admin_stats/'),
+  exportMaids: () => api.get('/maid/profiles/export_maids/', { responseType: 'blob' }),
   // Admin actions
   verify: (id, notes) => api.post(`/maid/profiles/${id}/verify/`, { verification_notes: notes }),
   unverify: (id) => api.post(`/maid/profiles/${id}/unverify/`),
   disable: (id, reason) => api.post(`/maid/profiles/${id}/disable/`, { reason }),
   enable: (id) => api.post(`/maid/profiles/${id}/enable/`),
 };
-
 // Homeowner API
 export const homeownerAPI = {
   getAll: (params) => api.get('/homeowner/profiles/', { params }),
   getMyProfile: () => api.get('/homeowner/profiles/my_profile/'),
   update: (id, data) => api.patch(`/homeowner/profiles/${id}/`, data),
+  recentMaids: () => api.get('/homeowner/profiles/recent_maids/'),
+  exportHomeowners: () => api.get('/homeowner/profiles/export_homeowners/', { responseType: 'blob' }),
+  // Admin actions (backend endpoints required)
+  verify: (id, notes) => api.post(`/homeowner/profiles/${id}/verify/`, { verification_notes: notes }),
+  unverify: (id) => api.post(`/homeowner/profiles/${id}/unverify/`),
+  activate: (id) => api.post(`/homeowner/profiles/${id}/activate/`),
+  deactivate: (id, reason) => api.post(`/homeowner/profiles/${id}/deactivate/`, { reason }),
 };
 
 // Job API
@@ -123,6 +133,8 @@ export const reviewAPI = {
   getById: (id) => api.get(`/homeowner/reviews/${id}/`),
   create: (data) => api.post('/homeowner/reviews/', data),
   update: (id, data) => api.patch(`/homeowner/reviews/${id}/`, data),
+  mine: () => api.get('/homeowner/reviews/mine/'),
+  given: () => api.get('/homeowner/reviews/given/'),
 };
 
 export default api;
