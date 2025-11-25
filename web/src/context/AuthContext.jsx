@@ -78,6 +78,8 @@ export const AuthProvider = ({ children }) => {
     isAuthenticated: !!user,
     isHomeowner: user?.user_type === 'homeowner',
     isMaid: user?.user_type === 'maid',
+    isCleaningCompany: user?.user_type === 'cleaning_company',
+    isHomeNurse: user?.user_type === 'home_nurse',
     isAdmin: user?.user_type === 'admin',
   };
 

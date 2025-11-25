@@ -137,4 +137,33 @@ export const reviewAPI = {
   given: () => api.get('/homeowner/reviews/given/'),
 };
 
+// Cleaning Company API
+export const cleaningCompanyAPI = {
+  categoriesGrouped: () => api.get('/cleaning-company/categories/grouped/'),
+  register: (data) => api.post('/cleaning-company/register/', data),
+  me: () => api.get('/cleaning-company/me/'),
+  galleryList: () => api.get('/cleaning-company/gallery/'),
+  meUpdate: (data) => api.patch('/cleaning-company/me/', data),
+  galleryUpload: (formData) => api.post('/cleaning-company/gallery/', formData),
+  galleryDelete: (id) => api.delete(`/cleaning-company/gallery/${id}/`),
+  galleryUpdate: (id, data) => api.patch(`/cleaning-company/gallery/${id}/`, data),
+  adminList: (params) => api.get('/cleaning-company/admin/companies/', { params }),
+  adminBulk: (data) => api.post('/cleaning-company/admin/companies/bulk/', data),
+  browse: (params) => api.get('/cleaning-company/browse/', { params }),
+};
+
+// Home Nursing API
+export const homeNursingAPI = {
+  categoriesGrouped: () => api.get('/home-nursing/categories/grouped/'),
+  register: (data) => api.post('/home-nursing/register/', data),
+  me: () => api.get('/home-nursing/me/'),
+  updateMe: (data) => api.patch('/home-nursing/me/', data),
+  adminList: (params) => api.get('/home-nursing/admin/nurses/', { params }),
+  adminVerify: (id) => api.post(`/home-nursing/admin/nurses/${id}/verify/`),
+  adminUnverify: (id) => api.post(`/home-nursing/admin/nurses/${id}/unverify/`),
+  adminEnable: (id) => api.post(`/home-nursing/admin/nurses/${id}/enable/`),
+  adminDisable: (id) => api.post(`/home-nursing/admin/nurses/${id}/disable/`),
+  browse: (params) => api.get('/home-nursing/public/browse/', { params }),
+};
+
 export default api;

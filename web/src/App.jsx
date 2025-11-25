@@ -9,9 +9,17 @@ import MaidProfileSettings from './pages/MaidProfileSettings';
 import HomeownerProfileSettings from './pages/HomeownerProfileSettings';
 import ManageMaids from './pages/ManageMaids';
 import ManageHomeowners from './pages/ManageHomeowners';
+import ManageCleaningCompanies from './pages/ManageCleaningCompanies';
+import ManageHomeNurses from './pages/ManageHomeNurses';
+import FindCleaningCompanies from './pages/FindCleaningCompanies';
+import FindHomeNurses from './pages/FindHomeNurses';
+import ViewCompanyProfile from './pages/company/ViewCompanyProfile';
+import EditCompanyProfile from './pages/company/EditCompanyProfile';
 import FindMaids from './pages/FindMaids';
 import MyMaidProfile from './pages/MyMaidProfile';
 import MyReviews from './pages/MyReviews';
+import MyNurseProfile from './pages/MyNurseProfile';
+import EditNurseProfile from './pages/EditNurseProfile';
 
 function App() {
   return (
@@ -70,6 +78,38 @@ function App() {
             }
           />
           <Route
+            path="/company/profile"
+            element={
+              <ProtectedRoute>
+                <ViewCompanyProfile />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/company/profile/edit"
+            element={
+              <ProtectedRoute>
+                <EditCompanyProfile />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/manage-cleaning-companies"
+            element={
+              <ProtectedRoute>
+                <ManageCleaningCompanies />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/manage-home-nurses"
+            element={
+              <ProtectedRoute>
+                <ManageHomeNurses />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/find-maids"
             element={
               <ProtectedRoute>
@@ -78,10 +118,42 @@ function App() {
             }
           />
           <Route
+            path="/find-cleaning-companies"
+            element={
+              <ProtectedRoute>
+                <FindCleaningCompanies />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/find-home-nurses"
+            element={
+              <ProtectedRoute>
+                <FindHomeNurses />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/my-profile"
             element={
               <ProtectedRoute>
                 <MyMaidProfile />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/nurse/profile"
+            element={
+              <ProtectedRoute>
+                <MyNurseProfile />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/nurse/profile/edit"
+            element={
+              <ProtectedRoute>
+                <EditNurseProfile />
               </ProtectedRoute>
             }
           />

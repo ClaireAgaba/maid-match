@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import BrandLogo from '../components/BrandLogo';
-import { maidAPI, homeownerAPI, authAPI, reviewAPI } from '../services/api';
+import { maidAPI, homeownerAPI, authAPI, reviewAPI, cleaningCompanyAPI, homeNursingAPI } from '../services/api';
 import { 
   Briefcase, Users, Star, Settings, LogOut,
   Home, Calendar, DollarSign, TrendingUp, User,
@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 
 const Dashboard = () => {
-  const { user, logout, isHomeowner, isMaid, isAdmin } = useAuth();
+  const { user, logout, isHomeowner, isMaid, isAdmin, isHomeNurse } = useAuth();
   const navigate = useNavigate();
   const [stats, setStats] = useState({
     jobsPosted: 0,
@@ -34,6 +34,17 @@ const Dashboard = () => {
   const [rcComment, setRcComment] = useState('');
   const [submittingHomeRating, setSubmittingHomeRating] = useState(false);
   const [adminStats, setAdminStats] = useState(null);
+  const [companyProfile, setCompanyProfile] = useState(null);
+  const [companyGallery, setCompanyGallery] = useState([]);
+  const [savingAvailability, setSavingAvailability] = useState(false);
+  const [galleryUploading, setGalleryUploading] = useState(false);
+  const [editingCaptionId, setEditingCaptionId] = useState(null);
+  const [editingCaptionText, setEditingCaptionText] = useState('');
+  const localGalleryKey = user?.username ? `company_gallery_${user.username}` : null;
+  const [viewerOpen, setViewerOpen] = useState(false);
+  const [viewerIndex, setViewerIndex] = useState(0);
+  // home nurse state
+  const [nurseProfile, setNurseProfile] = useState(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -76,6 +87,28 @@ const Dashboard = () => {
         } catch (e) {
           console.error('Failed to load admin stats', e);
         }
+      } else if (user?.user_type === 'cleaning_company') {
+        try {
+          const me = await cleaningCompanyAPI.me();
+          setCompanyProfile(me.data);
+        } catch (e) { /* ignore */ }
+        // Load local-only gallery first
+        try {
+          if (localGalleryKey) {
+            const raw = localStorage.getItem(localGalleryKey);
+            if (raw) {
+              const arr = JSON.parse(raw);
+              if (Array.isArray(arr)) setCompanyGallery(arr);
+            }
+          }
+        } catch {}
+      } else if (isHomeNurse) {
+        try {
+          const me = await homeNursingAPI.me();
+          setNurseProfile(me.data);
+        } catch (e) {
+          console.error('Error fetching nurse profile:', e);
+        }
       }
     };
     fetchData();
@@ -92,7 +125,7 @@ const Dashboard = () => {
       window.removeEventListener('visibilitychange', onFocus);
       window.removeEventListener('focus', onFocus);
     };
-  }, [isMaid, isHomeowner]);
+  }, [isMaid, isHomeowner, isHomeNurse, user?.user_type]);
 
   const handleLogout = async () => {
     await logout();
@@ -215,6 +248,8 @@ const Dashboard = () => {
           <p className="text-gray-600">
             {isHomeowner && "Manage your jobs and find the perfect maid for your home."}
             {isMaid && "Browse available jobs and manage your profile."}
+            {isHomeNurse && "Manage your nursing profile, services and find home care jobs."}
+            {user?.user_type === 'cleaning_company' && "Manage your company profile and showcase your work."}
             {isAdmin && "Manage the MaidMatch platform."}
           </p>
         </div>
@@ -243,6 +278,39 @@ const Dashboard = () => {
                   >
                     Complete Your Profile →
                   </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Image Viewer Modal */}
+        {viewerOpen && companyGallery.length > 0 && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70" onClick={() => setViewerOpen(false)}>
+            <div className="max-w-5xl w-full px-4" onClick={(e) => e.stopPropagation()}>
+              <div className="bg-white rounded-lg overflow-hidden shadow-xl">
+                <div className="relative">
+                  <img
+                    src={(companyGallery[viewerIndex] && (companyGallery[viewerIndex].image_url || companyGallery[viewerIndex].image)) || ''}
+                    alt={(companyGallery[viewerIndex] && companyGallery[viewerIndex].caption) || 'work'}
+                    className="w-full h-auto max-h-[80vh] object-contain bg-black"
+                  />
+                  <button className="absolute top-3 right-3 btn-secondary" onClick={() => setViewerOpen(false)}>Close</button>
+                </div>
+                <div className="p-4 flex items-center justify-between">
+                  <div className="text-sm text-gray-700 truncate">
+                    {(companyGallery[viewerIndex] && companyGallery[viewerIndex].caption) || 'No caption'}
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      className="btn-secondary"
+                      onClick={() => setViewerIndex((viewerIndex - 1 + companyGallery.length) % companyGallery.length)}
+                    >Prev</button>
+                    <button
+                      className="btn-secondary"
+                      onClick={() => setViewerIndex((viewerIndex + 1) % companyGallery.length)}
+                    >Next</button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -291,6 +359,262 @@ const Dashboard = () => {
                 </div>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* Cleaning Company: Profile row */}
+        {user?.user_type === 'cleaning_company' && companyProfile && (
+          <div className="card mb-8">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-6 space-y-4 sm:space-y-0">
+              <div className="relative flex-shrink-0">
+                <div className="h-24 w-24 rounded-full overflow-hidden border-4 border-gray-200 shadow-lg">
+                  {companyProfile.display_photo_url ? (
+                    <img src={companyProfile.display_photo_url} alt={companyProfile.company_name} className="h-full w-full object-cover" />
+                  ) : (
+                    <div className="h-full w-full bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center">
+                      <Users className="h-12 w-12 text-white" />
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="flex-1">
+                <h3 className="text-xl sm:text-2xl font-bold text-gray-900">{companyProfile.company_name}</h3>
+                <div className="flex flex-wrap items-center gap-2 mt-1">
+                  <p className="text-gray-600">{companyProfile.location || 'Location not set'}</p>
+                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${companyProfile.verified ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                    {companyProfile.verified ? 'Verified' : 'Not Verified'}
+                  </span>
+                </div>
+              </div>
+              <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                <button className="btn-secondary flex items-center justify-center w-full sm:w-auto" onClick={() => navigate('/company/profile')}>
+                  <Eye className="h-4 w-4 mr-2" />
+                  View Profile
+                </button>
+                <button className="btn-secondary flex items-center justify-center w-full sm:w-auto" onClick={() => navigate('/company/profile/edit')}>
+                  <Settings className="h-4 w-4 mr-2" />
+                  Edit Profile
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Cleaning Company: Services row */}
+        {user?.user_type === 'cleaning_company' && companyProfile && (
+          <div className="card mb-8">
+            <h3 className="text-xl font-semibold text-gray-900 mb-3">Services Offered</h3>
+            {Array.isArray(companyProfile.services) && companyProfile.services.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {companyProfile.services.map((svc) => (
+                  <span key={svc.id} className="px-3 py-1 bg-gray-100 text-gray-800 rounded-full text-sm">{svc.name}</span>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-gray-600">No services added.</p>
+            )}
+          </div>
+        )}
+
+        {/* Home Nurse: Profile row */}
+        {isHomeNurse && (
+          <div className="card mb-8">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-6 space-y-4 sm:space-y-0">
+              <div className="relative flex-shrink-0">
+                <div className="h-24 w-24 rounded-full overflow-hidden border-4 border-gray-200 shadow-lg">
+                  {nurseProfile?.display_photo ? (
+                    <img src={nurseProfile.display_photo.startsWith('http') ? nurseProfile.display_photo : `http://localhost:8000${nurseProfile.display_photo}`}
+                         alt={nurseProfile.username || 'nurse'} className="h-full w-full object-cover" />
+                  ) : (
+                    <div className="h-full w-full bg-gradient-to-br from-pink-400 to-purple-600 flex items-center justify-center">
+                      <User className="h-12 w-12 text-white" />
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="flex-1">
+                <h3 className="text-xl sm:text-2xl font-bold text-gray-900">
+                  {nurseProfile?.username || user?.username}
+                  {typeof nurseProfile?.age === 'number' && (
+                    <span className="ml-2 text-sm font-normal text-gray-600">• {nurseProfile.age} yrs</span>
+                  )}
+                </h3>
+                <div className="flex flex-wrap items-center gap-2 mt-1">
+                  <p className="text-gray-600">{nurseProfile?.location || 'Location not set'}</p>
+                  {/* Availability badge (fallback to emergency_availability) */}
+                  {typeof nurseProfile?.emergency_availability !== 'undefined' && (
+                    <span className={`px-2 py-0.5 rounded-full text-xs ${nurseProfile.emergency_availability ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
+                      {nurseProfile.emergency_availability ? 'Available' : 'Unavailable'}
+                    </span>
+                  )}
+                  {/* Verification badge: show only if backend provides is_verified; else default Not Verified visually subtle */}
+                  <span className={`px-2 py-0.5 rounded-full text-xs ${nurseProfile?.is_verified ? 'bg-blue-100 text-blue-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                    {nurseProfile?.is_verified ? 'Verified' : 'Not Verified'}
+                  </span>
+                </div>
+              </div>
+              <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                <button className="btn-secondary flex items-center justify-center w-full sm:w-auto" onClick={() => navigate('/nurse/profile')}>
+                  <Eye className="h-4 w-4 mr-2" />
+                  View Profile
+                </button>
+                <button className="btn-secondary flex items-center justify-center w-full sm:w-auto" onClick={() => navigate('/nurse/profile/edit')}>
+                  <Settings className="h-4 w-4 mr-2" />
+                  Edit Profile
+                </button>
+                {/* Availability quick toggle uses emergency_availability as availability */}
+                <button
+                  className={`btn-secondary flex items-center justify-center w-full sm:w-auto ${savingAvailability ? 'opacity-60 cursor-not-allowed' : ''}`}
+                  disabled={savingAvailability}
+                  onClick={async () => {
+                    try {
+                      setSavingAvailability(true);
+                      const next = !nurseProfile?.emergency_availability;
+                      const fd = new FormData();
+                      fd.append('emergency_availability', next ? 'true' : 'false');
+                      await homeNursingAPI.updateMe(fd);
+                      // locally update to feel instant
+                      setNurseProfile((prev) => ({ ...(prev || {}), emergency_availability: next }));
+                    } catch (e) {
+                      console.error('Failed to update availability', e);
+                    } finally {
+                      setSavingAvailability(false);
+                    }
+                  }}
+                >
+                  {nurseProfile?.emergency_availability ? 'Set Unavailable' : 'Set Available'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Home Nurse: Services row */}
+        {isHomeNurse && (
+          <div className="card mb-8">
+            <h3 className="text-xl font-semibold text-gray-900 mb-3">Services Offered</h3>
+            {Array.isArray(nurseProfile?.services) && nurseProfile.services.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {nurseProfile.services.map((svc) => (
+                  <span key={svc.id} className="px-3 py-1 bg-gray-100 text-gray-800 rounded-full text-sm">{svc.name}</span>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-gray-600">No services added.</p>
+            )}
+          </div>
+        )}
+
+        {/* Cleaning Company: Gallery row */}
+        {user?.user_type === 'cleaning_company' && (
+          <div className="card mb-8">
+            <h3 className="text-xl font-semibold text-gray-900 mb-3">Our Works</h3>
+            {/* Upload form */}
+            <form
+              className="flex flex-col sm:flex-row gap-2 mb-4"
+              onSubmit={async (e) => {
+                e.preventDefault();
+                const fileInput = e.currentTarget.querySelector('input[name="gallery_image"]');
+                const captionInput = e.currentTarget.querySelector('input[name="gallery_caption"]');
+                if (!fileInput.files[0]) return;
+                setGalleryUploading(true);
+                try {
+                  const file = fileInput.files[0];
+                  const reader = new FileReader();
+                  reader.onload = () => {
+                    const dataUrl = reader.result; // base64 data URL
+                    const newItem = {
+                      id: `local-${Date.now()}`,
+                      image_url: dataUrl,
+                      caption: captionInput.value || '',
+                      _local: true,
+                    };
+                    const next = [newItem, ...companyGallery];
+                    setCompanyGallery(next);
+                    if (localGalleryKey) localStorage.setItem(localGalleryKey, JSON.stringify(next));
+                    fileInput.value = '';
+                    captionInput.value = '';
+                    setGalleryUploading(false);
+                  };
+                  reader.onerror = (e) => {
+                    console.error('File read error', e);
+                    setGalleryUploading(false);
+                    alert('Failed to read file');
+                  };
+                  reader.readAsDataURL(file);
+                  return; // early return; we'll unset uploading in onload/onerror
+                } catch (err) {
+                  console.error('Gallery upload failed', err?.response || err);
+                  alert('Failed to upload image');
+                } finally {
+                  // no-op; handled in reader callbacks
+                }
+              }}
+            >
+              <input name="gallery_image" type="file" accept="image/*" className="input-field" />
+              <input name="gallery_caption" type="text" className="input-field" placeholder="Caption (optional)" />
+              <button disabled={galleryUploading} className="btn-primary">{galleryUploading ? 'Uploading...' : 'Add your work'}</button>
+            </form>
+
+            {companyGallery && companyGallery.length > 0 ? (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {companyGallery.map((item, idx) => (
+                  <div key={item.id} className="relative">
+                    <img
+                      src={item.image_url || item.image}
+                      alt={item.caption || 'work'}
+                      className="w-full h-40 object-cover rounded cursor-pointer"
+                      onClick={() => { setViewerIndex(idx); setViewerOpen(true); }}
+                    />
+                    {editingCaptionId === item.id ? (
+                      <div className="mt-1 flex items-center gap-2">
+                        <input
+                          className="input-field"
+                          value={editingCaptionText}
+                          onChange={(e) => setEditingCaptionText(e.target.value)}
+                        />
+                        <button
+                          className="btn-primary"
+                          onClick={async () => {
+                            try {
+                              let next = companyGallery.map((g) => g.id === item.id ? { ...g, caption: editingCaptionText } : g);
+                              setCompanyGallery(next);
+                              if (localGalleryKey) localStorage.setItem(localGalleryKey, JSON.stringify(next));
+                              setEditingCaptionId(null);
+                              setEditingCaptionText('');
+                            } catch (e) { alert('Failed to save'); }
+                          }}
+                        >Save</button>
+                        <button className="btn-secondary" onClick={() => { setEditingCaptionId(null); setEditingCaptionText(''); }}>Cancel</button>
+                      </div>
+                    ) : (
+                      <div className="mt-1 flex items-center justify-between gap-2">
+                        <div className="text-xs text-gray-600 truncate">{item.caption || 'No caption'}</div>
+                        <div className="flex gap-2">
+                          <button
+                            className="text-xs px-2 py-1 rounded border border-gray-300 hover:bg-gray-50"
+                            onClick={() => { setEditingCaptionId(item.id); setEditingCaptionText(item.caption || ''); }}
+                          >Edit</button>
+                          <button
+                            className="text-xs px-2 py-1 rounded border border-red-300 text-red-600 hover:bg-red-50"
+                            onClick={async () => {
+                              if (!confirm('Delete this image?')) return;
+                              try {
+                                const next = companyGallery.filter((g) => g.id !== item.id);
+                                setCompanyGallery(next);
+                                if (localGalleryKey) localStorage.setItem(localGalleryKey, JSON.stringify(next));
+                              } catch (e) { alert('Failed to delete'); }
+                            }}
+                          >Delete</button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-gray-600">No gallery items yet.</p>
+            )}
           </div>
         )}
 
@@ -568,6 +892,28 @@ const Dashboard = () => {
               <div className="card">
                 <div className="flex items-center justify-between">
                   <div>
+                    <p className="text-sm text-gray-600">Cleaning Companies</p>
+                    <p className="text-3xl font-bold text-gray-900">{adminStats.total_cleaning_companies}</p>
+                  </div>
+                  <div className="bg-green-100 p-3 rounded-lg">
+                    <Users className="w-8 h-8 text-green-600" />
+                  </div>
+                </div>
+              </div>
+              <div className="card">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600">Home Nurses</p>
+                    <p className="text-3xl font-bold text-gray-900">{adminStats.total_home_nurses}</p>
+                  </div>
+                  <div className="bg-pink-100 p-3 rounded-lg">
+                    <Users className="w-8 h-8 text-pink-600" />
+                  </div>
+                </div>
+              </div>
+              <div className="card">
+                <div className="flex items-center justify-between">
+                  <div>
                     <p className="text-sm text-gray-600">Temporary Available</p>
                     <p className="text-3xl font-bold text-gray-900">{adminStats.temporary_available_maids}</p>
                   </div>
@@ -616,6 +962,14 @@ const Dashboard = () => {
                   <Users className="w-8 h-8 text-primary-600 mx-auto mb-2" />
                   <p className="font-medium text-gray-900">Find Maids</p>
                 </button>
+                <button onClick={() => navigate('/find-cleaning-companies')} className="p-4 border-2 border-gray-200 rounded-lg hover:border-primary-500 hover:bg-primary-50 transition-all">
+                  <Users className="w-8 h-8 text-primary-600 mx-auto mb-2" />
+                  <p className="font-medium text-gray-900">Find Cleaning Companies</p>
+                </button>
+                <button onClick={() => navigate('/find-home-nurses')} className="p-4 border-2 border-gray-200 rounded-lg hover:border-primary-500 hover:bg-primary-50 transition-all">
+                  <Users className="w-8 h-8 text-primary-600 mx-auto mb-2" />
+                  <p className="font-medium text-gray-900">Find Home Nurses</p>
+                </button>
                 <button onClick={() => navigate('/my-reviews')} className="p-4 border-2 border-gray-200 rounded-lg hover:border-primary-500 hover:bg-primary-50 transition-all">
                   <Star className="w-8 h-8 text-primary-600 mx-auto mb-2" />
                   <p className="font-medium text-gray-900">My Reviews</p>
@@ -663,6 +1017,20 @@ const Dashboard = () => {
                   <Home className="w-8 h-8 text-primary-600 mx-auto mb-2" />
                   <p className="font-medium text-gray-900">Manage Homeowners</p>
                 </button>
+                <button 
+                  onClick={() => navigate('/manage-cleaning-companies')}
+                  className="p-4 border-2 border-gray-200 rounded-lg hover:border-primary-500 hover:bg-primary-50 transition-all"
+                >
+                  <Users className="w-8 h-8 text-primary-600 mx-auto mb-2" />
+                  <p className="font-medium text-gray-900">Manage Cleaning Companies</p>
+                </button>
+                <button 
+                  onClick={() => navigate('/manage-home-nurses')}
+                  className="p-4 border-2 border-gray-200 rounded-lg hover:border-primary-500 hover:bg-primary-50 transition-all"
+                >
+                  <Users className="w-8 h-8 text-primary-600 mx-auto mb-2" />
+                  <p className="font-medium text-gray-900">Manage Home Nurses</p>
+                </button>
                 <button onClick={onExportMaids} className="p-4 border-2 border-gray-200 rounded-lg hover:border-primary-500 hover:bg-primary-50 transition-all">
                   <Users className="w-8 h-8 text-primary-600 mx-auto mb-2" />
                   <p className="font-medium text-gray-900">Export Maids (CSV)</p>
@@ -670,6 +1038,44 @@ const Dashboard = () => {
                 <button onClick={onExportHomeowners} className="p-4 border-2 border-gray-200 rounded-lg hover:border-primary-500 hover:bg-primary-50 transition-all">
                   <Home className="w-8 h-8 text-primary-600 mx-auto mb-2" />
                   <p className="font-medium text-gray-900">Export Homeowners (CSV)</p>
+                </button>
+              </>
+            )}
+
+            {user?.user_type === 'cleaning_company' && (
+              <>
+                <button
+                  onClick={() => navigate('/jobs')}
+                  className="p-4 border-2 border-gray-200 rounded-lg hover:border-primary-500 hover:bg-primary-50 transition-all"
+                >
+                  <Briefcase className="w-8 h-8 text-primary-600 mx-auto mb-2" />
+                  <p className="font-medium text-gray-900">Browse Jobs</p>
+                </button>
+                <button
+                  onClick={() => navigate('/my-reviews')}
+                  className="p-4 border-2 border-gray-200 rounded-lg hover:border-primary-500 hover:bg-primary-50 transition-all"
+                >
+                  <Star className="w-8 h-8 text-primary-600 mx-auto mb-2" />
+                  <p className="font-medium text-gray-900">Rates & Reviews</p>
+                </button>
+              </>
+            )}
+
+            {isHomeNurse && (
+              <>
+                <button
+                  onClick={() => navigate('/jobs')}
+                  className="p-4 border-2 border-gray-200 rounded-lg hover:border-primary-500 hover:bg-primary-50 transition-all"
+                >
+                  <Briefcase className="w-8 h-8 text-primary-600 mx-auto mb-2" />
+                  <p className="font-medium text-gray-900">Browse Jobs</p>
+                </button>
+                <button
+                  onClick={() => navigate('/my-reviews')}
+                  className="p-4 border-2 border-gray-200 rounded-lg hover:border-primary-500 hover:bg-primary-50 transition-all"
+                >
+                  <Star className="w-8 h-8 text-primary-600 mx-auto mb-2" />
+                  <p className="font-medium text-gray-900">My Reviews</p>
                 </button>
               </>
             )}
