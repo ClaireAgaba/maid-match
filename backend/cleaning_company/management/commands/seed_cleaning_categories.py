@@ -9,6 +9,7 @@ HOUSE = [
     "Sofa / couch cleaning",
     "Mattress deep cleaning",
     "Carpet cleaning",
+    "Laundry Services",
     "Tile scrubbing & stain removal",
     "Wall cleaning",
     "Window cleaning",

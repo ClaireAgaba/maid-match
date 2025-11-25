@@ -64,7 +64,6 @@ class HomeNurseMinimalSerializer(serializers.ModelSerializer):
             "years_of_experience",
             "preferred_working_hours",
             "emergency_availability",
-            "availability_status",
             "is_verified",
             "location",
             "services",
@@ -99,7 +98,6 @@ class HomeNurseUpdateSerializer(serializers.ModelSerializer):
             "services",
             "preferred_working_hours",
             "emergency_availability",
-            "availability_status",
             "location",
             "display_photo",
         ]
@@ -112,3 +110,37 @@ class HomeNurseUpdateSerializer(serializers.ModelSerializer):
         if services is not None:
             instance.services.set(services)
         return instance
+
+
+class AdminHomeNurseSerializer(serializers.ModelSerializer):
+    """Lightweight serializer for admin listing."""
+    username = serializers.CharField(source="user.username", read_only=True)
+    user_active = serializers.BooleanField(source="user.is_active", read_only=True)
+    services = NursingServiceCategorySerializer(many=True, read_only=True)
+    age = serializers.SerializerMethodField()
+
+    class Meta:
+        model = HomeNurse
+        fields = [
+            "id",
+            "username",
+            "user_active",
+            "is_verified",
+            "nursing_level",
+            "location",
+            "date_of_birth",
+            "age",
+            "years_of_experience",
+            "services",
+            "created_at",
+            "updated_at",
+        ]
+
+    def get_age(self, obj):
+        from datetime import date
+        if obj.date_of_birth:
+            today = date.today()
+            return today.year - obj.date_of_birth.year - (
+                (today.month, today.day) < (obj.date_of_birth.month, obj.date_of_birth.day)
+            )
+        return None

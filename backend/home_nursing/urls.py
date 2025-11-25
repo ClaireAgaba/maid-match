@@ -4,6 +4,8 @@ from .views import (
     NursingServiceCategoryGroupedList,
     HomeNurseRegisterView,
     MyHomeNurseView,
+    AdminHomeNurseListView,
+    AdminHomeNurseActionsView,
 )
 
 app_name = "home_nursing"
@@ -13,4 +15,6 @@ urlpatterns = [
     path("categories/grouped/", NursingServiceCategoryGroupedList.as_view(), name="categories_grouped"),
     path("register/", HomeNurseRegisterView.as_view(), name="register"),
     path("me/", MyHomeNurseView.as_view(), name="me"),
+    path("admin/nurses/", AdminHomeNurseListView.as_view(), name="admin_nurses"),
+    path("admin/nurses/<int:pk>/<str:action_name>/", AdminHomeNurseActionsView.as_view(), name="admin_nurse_action"),
 ]

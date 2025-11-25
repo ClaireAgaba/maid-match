@@ -31,6 +31,7 @@ class ServiceCategoryGroupedList(APIView):
             (ServiceCategory.GROUP_EXTERNAL, "External / Compound Services"),
             (ServiceCategory.GROUP_FUMIGATION, "Fumigation / Pest Control"),
             (ServiceCategory.GROUP_COMMERCIAL, "Commercial / Office Cleaning"),
+            (ServiceCategory.GROUP_LAUNDRY, "Laundry Services"),
         )
         data = {}
         for key, label in groups:

@@ -8,11 +8,13 @@ class ServiceCategory(models.Model):
     GROUP_EXTERNAL = "external"
     GROUP_FUMIGATION = "fumigation"
     GROUP_COMMERCIAL = "commercial"
+    GROUP_LAUNDRY = "laundry"
     GROUP_CHOICES = (
         (GROUP_HOUSE, "House Cleaning Services"),
         (GROUP_EXTERNAL, "External / Compound Services"),
         (GROUP_FUMIGATION, "Fumigation / Pest Control"),
         (GROUP_COMMERCIAL, "Commercial / Office Cleaning"),
+        (GROUP_LAUNDRY, "Laundry Services"),
     )
 
     name = models.CharField(max_length=100, unique=True)

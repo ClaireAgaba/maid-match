@@ -50,7 +50,6 @@ class HomeNurse(models.Model):
     date_of_birth = models.DateField(blank=True, null=True)
     preferred_working_hours = models.CharField(max_length=120, blank=True, help_text="e.g., Weekdays 8am-5pm or Nights")
     emergency_availability = models.BooleanField(default=False)
-    availability_status = models.BooleanField(default=True)
     is_verified = models.BooleanField(default=False)
     location = models.CharField(max_length=255, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)

@@ -1,7 +1,19 @@
+from rest_framework import permissions
+
+class IsAdminOrUserTypeAdmin(permissions.BasePermission):
+    """Allow Django staff OR custom accounts.user_type == 'admin'"""
+    def has_permission(self, request, view):
+        try:
+            return bool(getattr(request.user, "is_staff", False) or getattr(request.user, "user_type", "") == "admin")
+        except Exception:
+            return False
+
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework import generics, permissions
 from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework.decorators import action
+from rest_framework import status
 
 from .models import NursingServiceCategory, HomeNurse
 from .serializers import (
@@ -9,6 +21,7 @@ from .serializers import (
     HomeNurseCreateSerializer,
     HomeNurseMinimalSerializer,
     HomeNurseUpdateSerializer,
+    AdminHomeNurseSerializer,
 )
 
 
@@ -62,3 +75,46 @@ class MyHomeNurseView(generics.RetrieveUpdateAPIView):
         ctx = super().get_serializer_context()
         ctx["request"] = self.request
         return ctx
+
+
+class AdminHomeNurseListView(generics.ListAPIView):
+    """Admin list of home nurses with basic filters and pagination."""
+    serializer_class = AdminHomeNurseSerializer
+    permission_classes = [IsAdminOrUserTypeAdmin]
+
+    def get_queryset(self):
+        qs = HomeNurse.objects.select_related("user").prefetch_related("services").order_by("-created_at")
+        level = self.request.query_params.get("level")
+        if level in (HomeNurse.LEVEL_ENROLLED, HomeNurse.LEVEL_REGISTERED, HomeNurse.LEVEL_MIDWIFE):
+            qs = qs.filter(nursing_level=level)
+        search = self.request.query_params.get("q")
+        if search:
+            qs = qs.filter(user__username__icontains=search) | qs.filter(location__icontains=search)
+        return qs
+
+
+class AdminHomeNurseActionsView(generics.GenericAPIView):
+    """Admin actions on a single nurse: verify/unverify, enable/disable."""
+    permission_classes = [IsAdminOrUserTypeAdmin]
+    queryset = HomeNurse.objects.select_related("user").all()
+    serializer_class = AdminHomeNurseSerializer
+
+    def post(self, request, pk, action_name):
+        nurse = self.get_queryset().get(pk=pk)
+        if action_name == "verify":
+            nurse.is_verified = True
+            nurse.save(update_fields=["is_verified"])
+            return Response({"message": "Nurse verified"})
+        if action_name == "unverify":
+            nurse.is_verified = False
+            nurse.save(update_fields=["is_verified"])
+            return Response({"message": "Nurse unverified"})
+        if action_name == "enable":
+            nurse.user.is_active = True
+            nurse.user.save(update_fields=["is_active"])
+            return Response({"message": "Nurse account enabled"})
+        if action_name == "disable":
+            nurse.user.is_active = False
+            nurse.user.save(update_fields=["is_active"])
+            return Response({"message": "Nurse account disabled"})
+        return Response({"detail": "Unknown action"}, status=status.HTTP_400_BAD_REQUEST)
