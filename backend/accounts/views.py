@@ -68,7 +68,12 @@ class UserRegistrationView(APIView):
                     home_type=home_type,
                     number_of_rooms=number_of_rooms
                 )
-            
+            # Log the user in so subsequent requests are authenticated immediately
+            try:
+                login(request, user)
+            except Exception:
+                pass
+
             return Response({
                 'message': 'User registered successfully',
                 'user': UserSerializer(user).data

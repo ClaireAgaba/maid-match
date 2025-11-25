@@ -39,12 +39,28 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
             'address': {'required': False},
         }
     
+    def validate_username(self, value):
+        # Case-insensitive check for existing username
+        if User.objects.filter(username__iexact=value).exists():
+            raise serializers.ValidationError("A user with this username already exists.")
+        return value
+
+    def validate_phone_number(self, value):
+        # Normalize simple spaces and check duplicates
+        normalized = value.strip()
+        if User.objects.filter(phone_number=normalized).exists():
+            raise serializers.ValidationError("A user with this phone number already exists.")
+        return normalized
+
     def validate(self, attrs):
         if attrs['password'] != attrs['password2']:
             raise serializers.ValidationError({"password": "Password fields didn't match."})
         
-        if attrs['user_type'] not in ['homeowner', 'maid', 'admin']:
-            raise serializers.ValidationError({"user_type": "Invalid user type. Must be 'homeowner', 'maid', or 'admin'."})
+        allowed = ['homeowner', 'maid', 'cleaning_company', 'home_nurse', 'admin']
+        if attrs['user_type'] not in allowed:
+            raise serializers.ValidationError({
+                "user_type": "Invalid user type. Must be one of: homeowner, maid, cleaning_company, home_nurse, admin."
+            })
         
         return attrs
     

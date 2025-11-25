@@ -12,12 +12,13 @@ class User(AbstractUser):
     USER_TYPE_CHOICES = (
         ('homeowner', 'Homeowner'),
         ('maid', 'Maid'),
+        ('cleaning_company', 'Cleaning Company'),
+        ('home_nurse', 'Home Nurse'),
         ('admin', 'Admin'),
     )
     
     # Override email to make it optional
     email = models.EmailField(blank=True, null=True)
-    
     # Additional user fields
     full_name = models.CharField(max_length=200, blank=True, null=True)
     gender = models.CharField(max_length=10, choices=(

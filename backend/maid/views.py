@@ -6,6 +6,8 @@ from .models import MaidProfile, MaidAvailability
 from .serializers import MaidProfileSerializer, MaidProfileUpdateSerializer
 from .serializers import MaidProfileListSerializer, MaidAvailabilitySerializer
 from homeowner.models import HomeownerProfile, ClosedJob, Review
+from cleaning_company.models import CleaningCompany
+from home_nursing.models import HomeNurse
 import csv
 from datetime import date
 from django.http import HttpResponse
@@ -179,6 +181,8 @@ class MaidProfileViewSet(viewsets.ModelViewSet):
         verified_maids = MaidProfile.objects.filter(is_verified=True).count()
         unverified_maids = total_maids - verified_maids
         total_homeowners = HomeownerProfile.objects.count()
+        total_cleaning_companies = CleaningCompany.objects.count()
+        total_home_nurses = HomeNurse.objects.count()
         temp_available = MaidProfile.objects.filter(category='temporary', availability_status=True).count()
         live_in_available = MaidProfile.objects.filter(category='live_in', availability_status=True).count()
         completed_jobs = ClosedJob.objects.count()
@@ -187,6 +191,8 @@ class MaidProfileViewSet(viewsets.ModelViewSet):
             'verified_maids': verified_maids,
             'unverified_maids': unverified_maids,
             'total_homeowners': total_homeowners,
+            'total_cleaning_companies': total_cleaning_companies,
+            'total_home_nurses': total_home_nurses,
             'temporary_available_maids': temp_available,
             'live_in_available_maids': live_in_available,
             'completed_jobs': completed_jobs,

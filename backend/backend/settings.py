@@ -51,6 +51,8 @@ INSTALLED_APPS = [
     'maid',
     'homeowner',
     'admin_app',
+    'cleaning_company',
+    'home_nursing',
 ]
 
 MIDDLEWARE = [
