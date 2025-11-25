@@ -138,15 +138,7 @@ const Login = () => {
           </div>
         </div>
 
-        {/* Test Credentials */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm">
-          <p className="font-semibold text-blue-900 mb-2">Test Credentials:</p>
-          <div className="space-y-1 text-blue-800">
-            <p><strong>Homeowner:</strong> homeowner1 / home123</p>
-            <p><strong>Maid:</strong> maid1 / maid123</p>
-            <p><strong>Admin:</strong> admin / admin123</p>
-          </div>
-        </div>
+        
       </div>
     </div>
   );
