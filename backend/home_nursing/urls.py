@@ -6,6 +6,7 @@ from .views import (
     MyHomeNurseView,
     AdminHomeNurseListView,
     AdminHomeNurseActionsView,
+    PublicNurseBrowseList,
 )
 
 app_name = "home_nursing"
@@ -17,4 +18,5 @@ urlpatterns = [
     path("me/", MyHomeNurseView.as_view(), name="me"),
     path("admin/nurses/", AdminHomeNurseListView.as_view(), name="admin_nurses"),
     path("admin/nurses/<int:pk>/<str:action_name>/", AdminHomeNurseActionsView.as_view(), name="admin_nurse_action"),
+    path("public/browse/", PublicNurseBrowseList.as_view(), name="public_browse"),
 ]

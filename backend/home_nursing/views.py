@@ -118,3 +118,24 @@ class AdminHomeNurseActionsView(generics.GenericAPIView):
             nurse.user.save(update_fields=["is_active"])
             return Response({"message": "Nurse account disabled"})
         return Response({"detail": "Unknown action"}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class PublicNurseBrowseList(generics.ListAPIView):
+    """Public browse: only verified and active nurses."""
+    permission_classes = [permissions.AllowAny]
+    serializer_class = HomeNurseMinimalSerializer
+
+    def get_queryset(self):
+        qs = (
+            HomeNurse.objects.select_related("user")
+            .prefetch_related("services")
+            .filter(is_verified=True, user__is_active=True)
+            .order_by("-created_at")
+        )
+        q = self.request.query_params.get("q")
+        if q:
+            qs = qs.filter(user__username__icontains=q) | qs.filter(location__icontains=q)
+        level = self.request.query_params.get("level")
+        if level in (HomeNurse.LEVEL_ENROLLED, HomeNurse.LEVEL_REGISTERED, HomeNurse.LEVEL_MIDWIFE):
+            qs = qs.filter(nursing_level=level)
+        return qs

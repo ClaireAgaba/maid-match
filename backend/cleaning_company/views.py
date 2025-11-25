@@ -107,6 +107,24 @@ class AdminCompanyListView(generics.ListAPIView):
         return response
 
 
+class PublicCompanyBrowseList(generics.ListAPIView):
+    """Public browse: only verified and active companies."""
+    permission_classes = [permissions.AllowAny]
+    serializer_class = CleaningCompanyMinimalSerializer
+
+    def get_queryset(self):
+        qs = (
+            CleaningCompany.objects.select_related("user")
+            .prefetch_related("services")
+            .filter(verified=True, user__is_active=True)
+            .order_by("-created_at")
+        )
+        q = self.request.query_params.get("q")
+        if q:
+            qs = qs.filter(company_name__icontains=q) | qs.filter(location__icontains=q)
+        return qs
+
+
 class AdminCompanyBulkUpdateView(APIView):
     """Bulk verify/unverify and enable/disable companies: { ids: [], verified?, enable? }"""
     permission_classes = [permissions.IsAdminUser]

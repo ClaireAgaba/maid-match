@@ -59,10 +59,25 @@ class AdminCleaningCompanySerializer(serializers.ModelSerializer):
 class CleaningCompanyMinimalSerializer(serializers.ModelSerializer):
     services = ServiceCategorySerializer(many=True, read_only=True)
     display_photo_url = serializers.SerializerMethodField()
+    username = serializers.CharField(source="user.username", read_only=True)
+    user_id = serializers.IntegerField(source="user.id", read_only=True)
+    phone_number = serializers.CharField(source="user.phone_number", read_only=True)
+    email = serializers.EmailField(source="user.email", read_only=True)
 
     class Meta:
         model = CleaningCompany
-        fields = ["id", "company_name", "location", "verified", "services", "display_photo_url"]
+        fields = [
+            "id",
+            "company_name",
+            "location",
+            "verified",
+            "services",
+            "display_photo_url",
+            "username",
+            "user_id",
+            "phone_number",
+            "email",
+        ]
 
     def get_display_photo_url(self, obj):
         request = self.context.get("request")

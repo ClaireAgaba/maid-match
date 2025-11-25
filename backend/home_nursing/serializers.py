@@ -51,12 +51,16 @@ class HomeNurseMinimalSerializer(serializers.ModelSerializer):
     username = serializers.CharField(source="user.username", read_only=True)
     display_photo = serializers.ImageField(read_only=True)
     age = serializers.SerializerMethodField()
+    user_id = serializers.IntegerField(source="user.id", read_only=True)
+    phone_number = serializers.CharField(source="user.phone_number", read_only=True)
+    email = serializers.EmailField(source="user.email", read_only=True)
 
     class Meta:
         model = HomeNurse
         fields = [
             "id",
             "username",
+            "user_id",
             "nursing_level",
             "council_registration_number",
             "date_of_birth",
@@ -65,6 +69,8 @@ class HomeNurseMinimalSerializer(serializers.ModelSerializer):
             "preferred_working_hours",
             "emergency_availability",
             "is_verified",
+            "phone_number",
+            "email",
             "location",
             "services",
             "display_photo",

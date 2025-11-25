@@ -9,6 +9,7 @@ from .views import (
     CompanyGalleryDetailView,
     AdminCompanyListView,
     AdminCompanyBulkUpdateView,
+    PublicCompanyBrowseList,
 )
 
 app_name = "cleaning_company"
@@ -20,6 +21,7 @@ urlpatterns = [
     path("me/", MyCleaningCompanyView.as_view(), name="me"),
     path("gallery/", CompanyGalleryListCreateView.as_view(), name="gallery_list_create"),
     path("gallery/<int:pk>/", CompanyGalleryDetailView.as_view(), name="gallery_detail"),
+    path("browse/", PublicCompanyBrowseList.as_view(), name="browse"),
     path("admin/companies/", AdminCompanyListView.as_view(), name="admin_company_list"),
     path("admin/companies/bulk/", AdminCompanyBulkUpdateView.as_view(), name="admin_company_bulk"),
 ]
