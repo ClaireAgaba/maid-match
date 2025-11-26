@@ -91,10 +91,11 @@ class UserLoginView(APIView):
     def post(self, request):
         serializer = LoginSerializer(data=request.data)
         if serializer.is_valid():
-            username = serializer.validated_data['username']
+            phone_number = serializer.validated_data['phone_number']
             password = serializer.validated_data['password']
             
-            user = authenticate(request, username=username, password=password)
+            # Authenticate using phone_number
+            user = authenticate(request, username=phone_number, password=password)
             
             if user is not None:
                 # Block login if homeowner account is deactivated or maid account is disabled

@@ -8,7 +8,7 @@ const Login = () => {
   const navigate = useNavigate();
   const { login } = useAuth();
   const [formData, setFormData] = useState({
-    username: '',
+    phone_number: '',
     password: '',
   });
   const [error, setError] = useState('');
@@ -60,17 +60,17 @@ const Login = () => {
             )}
 
             <div>
-              <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-2">
-                Username
+              <label htmlFor="phone_number" className="block text-sm font-medium text-gray-700 mb-2">
+                Phone Number
               </label>
               <input
-                id="username"
-                name="username"
-                type="text"
+                id="phone_number"
+                name="phone_number"
+                type="tel"
                 required
                 className="input-field"
-                placeholder="Enter your username"
-                value={formData.username}
+                placeholder="+256702345678 or 0772345678"
+                value={formData.phone_number}
                 onChange={handleChange}
               />
             </div>
