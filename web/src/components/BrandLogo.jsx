@@ -7,7 +7,7 @@ const BrandLogo = ({ className = '', showText = false, sizeClass = 'h-8' }) => {
     <div className={`flex items-center ${className}`}>
       <img src={logo} alt="MaidMatch" className={`${sizeClass} w-auto`} />
       {showText && (
-        <span className="ml-2 text-lg font-bold text-primary-600">MaidMatch</span>
+        <span className="ml-2 text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-primary-600 to-secondary-600">MaidMatch</span>
       )}
     </div>
   );

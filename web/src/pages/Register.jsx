@@ -17,13 +17,13 @@ const Register = () => {
     user_type: 'homeowner',
     phone_number: '',
     address: '',
-    
+
     // Maid-specific fields (MaidProfile)
     full_name: '',
     date_of_birth: '',
     profile_photo: null,
     location: '',
-    
+
     // Homeowner-specific fields (HomeownerProfile)
     home_address: '',
     home_type: 'apartment',
@@ -67,7 +67,7 @@ const Register = () => {
 
   const handleChange = (e) => {
     const { name, value, type, files } = e.target;
-    
+
     if (type === 'file') {
       setFormData({
         ...formData,
@@ -79,7 +79,7 @@ const Register = () => {
         [name]: value,
       });
     }
-    
+
     // Clear error for this field
     if (errors[name]) {
       setErrors({ ...errors, [name]: null });
@@ -107,8 +107,8 @@ const Register = () => {
     // Validate maid-specific required fields
     if (formData.user_type === 'maid') {
       if (!formData.full_name || !formData.date_of_birth || !formData.location) {
-        setErrors({ 
-          non_field_errors: ['Please fill in all required maid information'] 
+        setErrors({
+          non_field_errors: ['Please fill in all required maid information']
         });
         setLoading(false);
         return;
@@ -198,11 +198,10 @@ const Register = () => {
                 <button
                   type="button"
                   onClick={() => setFormData({ ...formData, user_type: 'homeowner' })}
-                  className={`p-4 border-2 rounded-lg transition-all ${
-                    formData.user_type === 'homeowner'
+                  className={`p-4 border-2 rounded-lg transition-all ${formData.user_type === 'homeowner'
                       ? 'border-primary-600 bg-primary-50'
                       : 'border-gray-300 hover:border-primary-300'
-                  }`}
+                    }`}
                 >
                   <div className="text-center">
                     <div className="text-2xl mb-2">🏠</div>
@@ -213,11 +212,10 @@ const Register = () => {
                 <button
                   type="button"
                   onClick={() => setFormData({ ...formData, user_type: 'maid' })}
-                  className={`p-4 border-2 rounded-lg transition-all ${
-                    formData.user_type === 'maid'
+                  className={`p-4 border-2 rounded-lg transition-all ${formData.user_type === 'maid'
                       ? 'border-primary-600 bg-primary-50'
                       : 'border-gray-300 hover:border-primary-300'
-                  }`}
+                    }`}
                 >
                   <div className="text-center">
                     <div className="text-2xl mb-2">👩‍🔧</div>
@@ -229,11 +227,10 @@ const Register = () => {
                 <button
                   type="button"
                   onClick={() => setFormData({ ...formData, user_type: 'cleaning_company' })}
-                  className={`p-4 border-2 rounded-lg transition-all ${
-                    formData.user_type === 'cleaning_company'
+                  className={`p-4 border-2 rounded-lg transition-all ${formData.user_type === 'cleaning_company'
                       ? 'border-primary-600 bg-primary-50'
                       : 'border-gray-300 hover:border-primary-300'
-                  }`}
+                    }`}
                 >
                   <div className="text-center">
                     <div className="text-2xl mb-2">🧹</div>
@@ -245,11 +242,10 @@ const Register = () => {
                 <button
                   type="button"
                   onClick={() => setFormData({ ...formData, user_type: 'home_nurse' })}
-                  className={`p-4 border-2 rounded-lg transition-all ${
-                    formData.user_type === 'home_nurse'
+                  className={`p-4 border-2 rounded-lg transition-all ${formData.user_type === 'home_nurse'
                       ? 'border-primary-600 bg-primary-50'
                       : 'border-gray-300 hover:border-primary-300'
-                  }`}
+                    }`}
                 >
                   <div className="text-center">
                     <div className="text-2xl mb-2">🩺</div>
@@ -271,7 +267,7 @@ const Register = () => {
                 type="tel"
                 required
                 className="input-field"
-                placeholder="+254712345678 or 0712345678"
+                placeholder="+256702345678 or 0772345678"
                 value={formData.phone_number}
                 onChange={handleChange}
               />
@@ -311,7 +307,7 @@ const Register = () => {
                 name="email"
                 type="email"
                 className="input-field"
-                placeholder="john@example.com (optional)"
+                placeholder="john@gmail.com (optional)"
                 value={formData.email}
                 onChange={handleChange}
               />
@@ -336,7 +332,7 @@ const Register = () => {
                     type="text"
                     required
                     className="input-field"
-                    placeholder="Jane Mary Doe"
+                    placeholder="Jane Doe"
                     value={formData.full_name}
                     onChange={handleChange}
                   />
@@ -373,7 +369,7 @@ const Register = () => {
                     type="text"
                     required
                     className="input-field"
-                    placeholder="Nairobi, Westlands"
+                    placeholder="Munyonyo, Kampala"
                     value={formData.location}
                     onChange={handleChange}
                   />
@@ -618,7 +614,7 @@ const Register = () => {
                     name="home_address"
                     type="text"
                     className="input-field"
-                    placeholder="123 Main Street, Nairobi"
+                    placeholder="Plot 42, Ntinda Kisasi Road, Kampala"
                     value={formData.home_address}
                     onChange={handleChange}
                   />
