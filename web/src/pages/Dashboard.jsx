@@ -180,7 +180,7 @@ const Dashboard = () => {
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div>
               <h1 className="text-4xl font-bold text-gray-900 mb-2">
-                Hello, <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary-600 to-secondary-600">{user?.username}</span>! 👋
+                Hello, <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary-600 to-secondary-600">{user?.username}</span>! 
               </h1>
               <p className="text-lg text-gray-600 max-w-2xl">
                 {isHomeowner && "Manage your jobs and find the perfect maid for your home."}

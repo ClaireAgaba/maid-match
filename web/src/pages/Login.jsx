@@ -41,10 +41,12 @@ const Login = () => {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-50 to-primary-100 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
         {/* Header */}
-        <div className="text-center space-y-1">
-          <div className="flex justify-center"><BrandLogo sizeClass="h-12" /></div>
-          <h2 className="text-4xl font-bold text-gray-900">Welcome Back</h2>
-          <p className="mt-3 text-gray-600">Sign in to your account</p>
+        <div className="text-center space-y-4">
+          <div className="flex justify-center"><BrandLogo sizeClass="h-20" showText /></div>
+          <div>
+            <h2 className="text-4xl font-bold text-gray-900">Welcome Back</h2>
+            <p className="mt-3 text-gray-600">Sign in to your account</p>
+          </div>
         </div>
 
         {/* Login Form */}
@@ -138,7 +140,7 @@ const Login = () => {
           </div>
         </div>
 
-        
+
       </div>
     </div>
   );

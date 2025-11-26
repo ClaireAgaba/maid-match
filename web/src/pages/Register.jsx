@@ -180,10 +180,12 @@ const Register = () => {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-50 to-primary-100 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-2xl w-full space-y-8">
         {/* Header */}
-        <div className="text-center space-y-2">
-          <div className="flex justify-center"><BrandLogo sizeClass="h-16" /></div>
-          <h2 className="text-2xl font-semibold text-gray-900">Create Account</h2>
-          <p className="mt-2 text-gray-600">Join our community today</p>
+        <div className="text-center space-y-4">
+          <div className="flex justify-center"><BrandLogo sizeClass="h-20" showText /></div>
+          <div>
+            <h2 className="text-3xl font-bold text-gray-900">Create Account</h2>
+            <p className="mt-2 text-gray-600">Join our community today</p>
+          </div>
         </div>
 
         {/* Registration Form */}
@@ -199,8 +201,8 @@ const Register = () => {
                   type="button"
                   onClick={() => setFormData({ ...formData, user_type: 'homeowner' })}
                   className={`p-4 border-2 rounded-lg transition-all ${formData.user_type === 'homeowner'
-                      ? 'border-primary-600 bg-primary-50'
-                      : 'border-gray-300 hover:border-primary-300'
+                    ? 'border-primary-600 bg-primary-50'
+                    : 'border-gray-300 hover:border-primary-300'
                     }`}
                 >
                   <div className="text-center">
@@ -213,8 +215,8 @@ const Register = () => {
                   type="button"
                   onClick={() => setFormData({ ...formData, user_type: 'maid' })}
                   className={`p-4 border-2 rounded-lg transition-all ${formData.user_type === 'maid'
-                      ? 'border-primary-600 bg-primary-50'
-                      : 'border-gray-300 hover:border-primary-300'
+                    ? 'border-primary-600 bg-primary-50'
+                    : 'border-gray-300 hover:border-primary-300'
                     }`}
                 >
                   <div className="text-center">
@@ -228,8 +230,8 @@ const Register = () => {
                   type="button"
                   onClick={() => setFormData({ ...formData, user_type: 'cleaning_company' })}
                   className={`p-4 border-2 rounded-lg transition-all ${formData.user_type === 'cleaning_company'
-                      ? 'border-primary-600 bg-primary-50'
-                      : 'border-gray-300 hover:border-primary-300'
+                    ? 'border-primary-600 bg-primary-50'
+                    : 'border-gray-300 hover:border-primary-300'
                     }`}
                 >
                   <div className="text-center">
@@ -243,8 +245,8 @@ const Register = () => {
                   type="button"
                   onClick={() => setFormData({ ...formData, user_type: 'home_nurse' })}
                   className={`p-4 border-2 rounded-lg transition-all ${formData.user_type === 'home_nurse'
-                      ? 'border-primary-600 bg-primary-50'
-                      : 'border-gray-300 hover:border-primary-300'
+                    ? 'border-primary-600 bg-primary-50'
+                    : 'border-gray-300 hover:border-primary-300'
                     }`}
                 >
                   <div className="text-center">

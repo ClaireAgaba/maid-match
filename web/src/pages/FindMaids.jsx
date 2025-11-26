@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { maidAPI, reviewAPI } from '../services/api';
-import { Users, Search, MapPin, Star, User, CheckCircle2, X } from 'lucide-react';
+import { Users, Search, MapPin, Star, User, CheckCircle2, X, ArrowLeft } from 'lucide-react';
 
 const FindMaids = () => {
   const { isHomeowner } = useAuth();
@@ -60,7 +60,7 @@ const FindMaids = () => {
         // Ensure we have full profile with user id
         const detail = await maidAPI.getById(selected.id);
         const full = detail.data || selected;
-        setSelected((prev)=> ({...prev, ...full}));
+        setSelected((prev) => ({ ...prev, ...full }));
         const userId = full?.user?.id;
         if (!userId) { setReviews([]); setReviewsCount(0); return; }
         setLoadingReviews(true);
@@ -108,7 +108,15 @@ const FindMaids = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
-              <button onClick={() => navigate('/dashboard')} className="text-gray-600 hover:text-gray-900">← Back</button>
+              <button
+                onClick={() => navigate('/dashboard')}
+                className="inline-flex items-center gap-2 text-gray-700 hover:text-primary-600 transition-colors group"
+              >
+                <div className="p-2 rounded-lg bg-white shadow-sm border border-gray-200 group-hover:border-primary-300 group-hover:shadow transition-all">
+                  <ArrowLeft className="h-4 w-4" />
+                </div>
+                <span className="font-medium"></span>
+              </button>
               <div>
                 <h1 className="text-2xl font-bold text-gray-900">Find Maids</h1>
                 <p className="text-sm text-gray-600">Only verified, enabled and currently available maids</p>
@@ -167,7 +175,7 @@ const FindMaids = () => {
                     </div>
                     <div className="mt-2 flex items-center gap-2">
                       <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-green-500"></span> Available</span>
-                      <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 inline-flex items-center gap-1"><CheckCircle2 className="h-3 w-3"/> Verified</span>
+                      <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 inline-flex items-center gap-1"><CheckCircle2 className="h-3 w-3" /> Verified</span>
                       {m.category && (
                         <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
                           {m.category === 'live_in' ? 'Live-in' : 'Temporary'}
@@ -181,7 +189,7 @@ const FindMaids = () => {
                 <div className="space-y-2 mb-4 text-sm text-gray-700">
                   {m.skills && <p><span className="font-medium">Skills:</span> {m.skills}</p>}
                   <div className="flex items-center gap-4">
-                    <span className="inline-flex items-center gap-1"><Star className="h-4 w-4 text-yellow-500"/> {Number(m.rating || 0).toFixed(1)}</span>
+                    <span className="inline-flex items-center gap-1"><Star className="h-4 w-4 text-yellow-500" /> {Number(m.rating || 0).toFixed(1)}</span>
                     {m.experience_years ? <span>{m.experience_years} yrs exp</span> : null}
                     {m.hourly_rate ? <span>Starting Pay: UGX {m.hourly_rate}</span> : null}
                   </div>
@@ -203,7 +211,7 @@ const FindMaids = () => {
           <div className="bg-white w-full h-full sm:h-auto sm:max-h-[90vh] overflow-y-auto sm:rounded-lg sm:max-w-xl">
             <div className="sticky top-0 bg-white border-b px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between">
               <h2 className="text-xl font-bold text-gray-900">Maid Details</h2>
-              <button onClick={() => { setSelected(null); setShowContact(false); }} className="text-gray-400 hover:text-gray-600"><X className="h-6 w-6"/></button>
+              <button onClick={() => { setSelected(null); setShowContact(false); }} className="text-gray-400 hover:text-gray-600"><X className="h-6 w-6" /></button>
             </div>
             <div className="p-4 sm:p-6 space-y-4">
               <div className="flex items-center gap-4">
@@ -218,10 +226,10 @@ const FindMaids = () => {
                 </div>
                 <div>
                   <h3 className="text-2xl font-bold text-gray-900">{selected.full_name}</h3>
-                  <p className="text-gray-600 flex items-center"><MapPin className="h-4 w-4 mr-1"/>{selected.location || 'Location not set'}</p>
+                  <p className="text-gray-600 flex items-center"><MapPin className="h-4 w-4 mr-1" />{selected.location || 'Location not set'}</p>
                   <div className="mt-2 flex items-center gap-2">
                     <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-green-500"></span> Available</span>
-                    <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 inline-flex items-center gap-1"><CheckCircle2 className="h-3 w-3"/> Verified</span>
+                    <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 inline-flex items-center gap-1"><CheckCircle2 className="h-3 w-3" /> Verified</span>
                     {selected.category && (
                       <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 inline-flex items-center gap-1">{selected.category === 'live_in' ? 'Live-in' : 'Temporary'}</span>
                     )}
@@ -239,7 +247,7 @@ const FindMaids = () => {
                 <div>
                   <p className="text-gray-600">Rating</p>
                   <p className="font-medium flex items-center gap-2">
-                    <span className="inline-flex items-center gap-1"><Star className="h-4 w-4 text-yellow-500"/>{Number(selected.rating || 0).toFixed(1)}</span>
+                    <span className="inline-flex items-center gap-1"><Star className="h-4 w-4 text-yellow-500" />{Number(selected.rating || 0).toFixed(1)}</span>
                     {reviewsCount > 0 && (
                       <button
                         type="button"
@@ -294,7 +302,7 @@ const FindMaids = () => {
                   {reviewsCount > 1 && (
                     <button
                       className="text-sm text-primary-600 hover:text-primary-700"
-                      onClick={async ()=>{
+                      onClick={async () => {
                         if (reviewsExpanded) { setReviewsExpanded(false); return; }
                         try {
                           setLoadingReviews(true);
@@ -321,10 +329,10 @@ const FindMaids = () => {
                   <div className="text-sm text-gray-500">No reviews yet.</div>
                 ) : (
                   <div className="space-y-3">
-                    {(reviewsExpanded ? reviews : reviews.slice(0,1)).map((r) => (
+                    {(reviewsExpanded ? reviews : reviews.slice(0, 1)).map((r) => (
                       <div key={r.id} className="p-3 border rounded-lg bg-gray-50">
                         <div className="flex items-center gap-2 text-yellow-600 text-sm">
-                          <Star className="h-4 w-4"/>
+                          <Star className="h-4 w-4" />
                           <span className="font-semibold">{r.rating}.0</span>
                         </div>
                         {r.comment && (
@@ -354,8 +362,8 @@ const FindMaids = () => {
                     <div>
                       <p className="text-sm text-gray-700 mb-1">Punctuality</p>
                       <div className="flex items-center gap-1">
-                        {[1,2,3,4,5].map((n)=> (
-                          <button key={`pun-${n}`} type="button" onClick={()=>setRatePunctuality(n)} className="focus:outline-none" title={`${n} star${n>1?'s':''}`}>
+                        {[1, 2, 3, 4, 5].map((n) => (
+                          <button key={`pun-${n}`} type="button" onClick={() => setRatePunctuality(n)} className="focus:outline-none" title={`${n} star${n > 1 ? 's' : ''}`}>
                             <Star className={`h-6 w-6 ${ratePunctuality >= n ? 'text-yellow-500' : 'text-gray-300'}`} />
                           </button>
                         ))}
@@ -364,8 +372,8 @@ const FindMaids = () => {
                     <div>
                       <p className="text-sm text-gray-700 mb-1">Cleanliness / Work Quality</p>
                       <div className="flex items-center gap-1">
-                        {[1,2,3,4,5].map((n)=> (
-                          <button key={`qual-${n}`} type="button" onClick={()=>setRateQuality(n)} className="focus:outline-none" title={`${n} star${n>1?'s':''}`}>
+                        {[1, 2, 3, 4, 5].map((n) => (
+                          <button key={`qual-${n}`} type="button" onClick={() => setRateQuality(n)} className="focus:outline-none" title={`${n} star${n > 1 ? 's' : ''}`}>
                             <Star className={`h-6 w-6 ${rateQuality >= n ? 'text-yellow-500' : 'text-gray-300'}`} />
                           </button>
                         ))}
@@ -374,8 +382,8 @@ const FindMaids = () => {
                     <div>
                       <p className="text-sm text-gray-700 mb-1">Communication / Respect</p>
                       <div className="flex items-center gap-1">
-                        {[1,2,3,4,5].map((n)=> (
-                          <button key={`com-${n}`} type="button" onClick={()=>setRateCommunication(n)} className="focus:outline-none" title={`${n} star${n>1?'s':''}`}>
+                        {[1, 2, 3, 4, 5].map((n) => (
+                          <button key={`com-${n}`} type="button" onClick={() => setRateCommunication(n)} className="focus:outline-none" title={`${n} star${n > 1 ? 's' : ''}`}>
                             <Star className={`h-6 w-6 ${rateCommunication >= n ? 'text-yellow-500' : 'text-gray-300'}`} />
                           </button>
                         ))}
@@ -384,8 +392,8 @@ const FindMaids = () => {
                     <div>
                       <p className="text-sm text-gray-700 mb-1">Reliability</p>
                       <div className="flex items-center gap-1">
-                        {[1,2,3,4,5].map((n)=> (
-                          <button key={`rel-${n}`} type="button" onClick={()=>setRateReliability(n)} className="focus:outline-none" title={`${n} star${n>1?'s':''}`}>
+                        {[1, 2, 3, 4, 5].map((n) => (
+                          <button key={`rel-${n}`} type="button" onClick={() => setRateReliability(n)} className="focus:outline-none" title={`${n} star${n > 1 ? 's' : ''}`}>
                             <Star className={`h-6 w-6 ${rateReliability >= n ? 'text-yellow-500' : 'text-gray-300'}`} />
                           </button>
                         ))}
@@ -397,16 +405,16 @@ const FindMaids = () => {
                     placeholder="Optional comment"
                     className="input-field w-full mb-3"
                     value={ratingComment}
-                    onChange={(e)=>setRatingComment(e.target.value)}
+                    onChange={(e) => setRatingComment(e.target.value)}
                   />
                   <div className="flex justify-end gap-2">
-                    <button onClick={()=>{ setShowRate(false); setRatePunctuality(0); setRateQuality(0); setRateCommunication(0); setRateReliability(0); setRatingComment(''); }} className="btn-secondary">Cancel</button>
+                    <button onClick={() => { setShowRate(false); setRatePunctuality(0); setRateQuality(0); setRateCommunication(0); setRateReliability(0); setRatingComment(''); }} className="btn-secondary">Cancel</button>
                     <button
-                      disabled={submittingRate || [ratePunctuality, rateQuality, rateCommunication, rateReliability].some(v=>v===0)}
-                      onClick={async ()=>{
+                      disabled={submittingRate || [ratePunctuality, rateQuality, rateCommunication, rateReliability].some(v => v === 0)}
+                      onClick={async () => {
                         try {
                           setSubmittingRate(true);
-                          await reviewAPI.create({ 
+                          await reviewAPI.create({
                             maid_id: selected.id,
                             punctuality: ratePunctuality,
                             quality: rateQuality,
@@ -415,13 +423,13 @@ const FindMaids = () => {
                             comment: ratingComment
                           });
                           // trigger backend recompute of maid's average rating, then refresh
-                          try { await maidAPI.recomputeRating(selected.id); } catch (_) {}
+                          try { await maidAPI.recomputeRating(selected.id); } catch (_) { }
                           // refresh selected maid & list to reflect new average rating
                           try {
                             const fresh = await maidAPI.getById(selected.id);
                             const updated = fresh.data;
-                            setSelected((prev)=> ({...prev, ...updated}));
-                            setMaids((prev)=> prev.map(m=> m.id===updated.id ? {...m, ...updated} : m));
+                            setSelected((prev) => ({ ...prev, ...updated }));
+                            setMaids((prev) => prev.map(m => m.id === updated.id ? { ...m, ...updated } : m));
                           } catch (e) {
                             // non-blocking if refresh fails
                           }
@@ -450,16 +458,16 @@ const FindMaids = () => {
                 <button onClick={() => setShowRate(true)} className="btn-secondary w-full sm:w-auto">Rate Maid</button>
                 <button
                   disabled={submittingClose}
-                  onClick={async ()=>{
+                  onClick={async () => {
                     if (!selected) return;
                     const ok = confirm('Close job with this maid? This will increase her Jobs Completed count.');
                     if (!ok) return;
                     try {
                       setSubmittingClose(true);
                       const res = await maidAPI.closeJob(selected.id);
-                      const newCount = res?.data?.total_jobs_completed ?? ((selected.total_jobs_completed||0)+1);
-                      setSelected(prev => ({...prev, total_jobs_completed: newCount}));
-                      setMaids(prev => prev.map(m => m.id === selected.id ? {...m, total_jobs_completed: newCount} : m));
+                      const newCount = res?.data?.total_jobs_completed ?? ((selected.total_jobs_completed || 0) + 1);
+                      setSelected(prev => ({ ...prev, total_jobs_completed: newCount }));
+                      setMaids(prev => prev.map(m => m.id === selected.id ? { ...m, total_jobs_completed: newCount } : m));
                     } catch (e) {
                       console.error('Failed to close job', e);
                       alert('Failed to close job. Please try again.');
