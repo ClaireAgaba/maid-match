@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { homeNursingAPI, reviewAPI } from '../services/api';
-import { Users, Search, MapPin, ShieldCheck, Stethoscope, X, Star, Phone, Mail } from 'lucide-react';
+import { Users, Search, MapPin, ShieldCheck, Stethoscope, X, Star, Phone, Mail, ArrowLeft } from 'lucide-react';
 
 const FindHomeNurses = () => {
   const navigate = useNavigate();
@@ -40,8 +40,20 @@ const FindHomeNurses = () => {
       <div className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
-            <button onClick={() => navigate('/dashboard')} className="text-gray-600 hover:text-gray-900">← Back</button>
-            <h1 className="text-2xl font-bold text-gray-900">Find Home Nurses</h1>
+            <div className="flex items-center space-x-4">
+              <button
+                onClick={() => navigate('/dashboard')}
+                className="inline-flex items-center gap-2 text-gray-700 hover:text-primary-600 transition-colors group"
+              >
+                <div className="p-2 rounded-lg bg-white shadow-sm border border-gray-200 group-hover:border-primary-300 group-hover:shadow transition-all">
+                  <ArrowLeft className="h-4 w-4" />
+                </div>
+                <span className="font-medium"></span>
+              </button>
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900">Find Home Nurses</h1>
+              </div>
+            </div>
             <span className="px-3 py-1 bg-primary-100 text-primary-800 rounded-full text-sm font-medium">{items.length} Nurses</span>
           </div>
         </div>
@@ -57,10 +69,10 @@ const FindHomeNurses = () => {
                 placeholder="Search by username or location..."
                 className="input-field pl-10"
                 value={search}
-                onChange={(e)=>setSearch(e.target.value)}
+                onChange={(e) => setSearch(e.target.value)}
               />
             </div>
-            <select className="input-field w-full md:w-48" value={level} onChange={(e)=>setLevel(e.target.value)}>
+            <select className="input-field w-full md:w-48" value={level} onChange={(e) => setLevel(e.target.value)}>
               <option value="all">All Levels</option>
               <option value="enrolled">Enrolled Nurse</option>
               <option value="registered">Registered Nurse</option>
@@ -79,7 +91,7 @@ const FindHomeNurses = () => {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {items.map((n)=> (
+            {items.map((n) => (
               <div key={n.id} className="card hover:shadow-lg transition-shadow cursor-pointer" onClick={() => { setSelected(n); setShowContact(false); setShowRate(false); }}>
                 <div className="flex items-start gap-4">
                   <div className="h-16 w-16 rounded-full overflow-hidden border-2 border-gray-200 flex items-center justify-center bg-gradient-to-br from-pink-400 to-purple-600">
@@ -89,11 +101,11 @@ const FindHomeNurses = () => {
                     <h3 className="text-lg font-semibold text-gray-900">{n.username}</h3>
                     <p className="text-sm text-gray-600 flex items-center"><MapPin className="h-3 w-3 mr-1" />{n.location || 'Location not set'}</p>
                     <div className="mt-2 flex flex-wrap gap-2">
-                      <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 inline-flex items-center gap-1"><ShieldCheck className="h-3 w-3"/> Verified</span>
+                      <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 inline-flex items-center gap-1"><ShieldCheck className="h-3 w-3" /> Verified</span>
                       {n.nursing_level && (
                         <span className="px-2 py-0.5 rounded-full bg-gray-100 text-gray-800 text-xs">Level: {n.nursing_level}</span>
                       )}
-                      {Array.isArray(n.services) && n.services.slice(0,3).map(s => (
+                      {Array.isArray(n.services) && n.services.slice(0, 3).map(s => (
                         <span key={s.id} className="px-2 py-0.5 rounded-full bg-gray-100 text-gray-800 text-xs">{s.name}</span>
                       ))}
                       {Array.isArray(n.services) && n.services.length > 3 && (
@@ -113,7 +125,7 @@ const FindHomeNurses = () => {
           <div className="bg-white w-full h-full sm:h-auto sm:max-h-[90vh] overflow-y-auto sm:rounded-lg sm:max-w-xl">
             <div className="sticky top-0 bg-white border-b px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between">
               <h2 className="text-xl font-bold text-gray-900">Nurse Details</h2>
-              <button onClick={() => { setSelected(null); setShowContact(false); setShowRate(false); }} className="text-gray-400 hover:text-gray-600"><X className="h-6 w-6"/></button>
+              <button onClick={() => { setSelected(null); setShowContact(false); setShowRate(false); }} className="text-gray-400 hover:text-gray-600"><X className="h-6 w-6" /></button>
             </div>
             <div className="p-4 sm:p-6 space-y-4">
               <div className="flex items-center gap-4">
@@ -124,7 +136,7 @@ const FindHomeNurses = () => {
                   <h3 className="text-2xl font-bold text-gray-900">{selected.username}</h3>
                   <p className="text-gray-600 flex items-center"><MapPin className="h-4 w-4 mr-1" />{selected.location || 'Location not set'}</p>
                   <div className="mt-2 flex items-center gap-2">
-                    <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 inline-flex items-center gap-1"><ShieldCheck className="h-3 w-3"/> Verified</span>
+                    <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 inline-flex items-center gap-1"><ShieldCheck className="h-3 w-3" /> Verified</span>
                     {selected.nursing_level && (
                       <span className="px-2 py-0.5 rounded-full bg-gray-100 text-gray-800 text-xs">Level: {selected.nursing_level}</span>
                     )}
@@ -136,7 +148,7 @@ const FindHomeNurses = () => {
                 <div>
                   <p className="text-gray-900 font-medium mb-1">Services</p>
                   <div className="flex flex-wrap gap-2">
-                    {selected.services.map((s)=> (
+                    {selected.services.map((s) => (
                       <span key={s.id} className="px-3 py-1 bg-gray-100 text-gray-800 rounded-full text-sm">{s.name}</span>
                     ))}
                   </div>
@@ -155,27 +167,27 @@ const FindHomeNurses = () => {
                 <div className="p-4 border rounded-lg bg-gray-50">
                   <p className="text-gray-900 font-medium mb-2">Rate this nurse</p>
                   <div className="space-y-3 mb-3">
-                    {[{k:'punctuality',label:'Punctuality',val:ratePunctuality,set:setRatePunctuality},
-                      {k:'quality',label:'Care Quality',val:rateQuality,set:setRateQuality},
-                      {k:'communication',label:'Communication',val:rateCommunication,set:setRateCommunication},
-                      {k:'reliability',label:'Reliability',val:rateReliability,set:setRateReliability}].map(item => (
-                        <div key={item.k}>
-                          <p className="text-sm text-gray-700 mb-1">{item.label}</p>
-                          <div className="flex items-center gap-1">
-                            {[1,2,3,4,5].map(n => (
-                              <button key={`${item.k}-${n}`} type="button" onClick={()=>item.set(n)} className="focus:outline-none" title={`${n} star${n>1?'s':''}`}>
-                                <Star className={`h-6 w-6 ${item.val >= n ? 'text-yellow-500' : 'text-gray-300'}`} />
-                              </button>
-                            ))}
-                          </div>
+                    {[{ k: 'punctuality', label: 'Punctuality', val: ratePunctuality, set: setRatePunctuality },
+                    { k: 'quality', label: 'Care Quality', val: rateQuality, set: setRateQuality },
+                    { k: 'communication', label: 'Communication', val: rateCommunication, set: setRateCommunication },
+                    { k: 'reliability', label: 'Reliability', val: rateReliability, set: setRateReliability }].map(item => (
+                      <div key={item.k}>
+                        <p className="text-sm text-gray-700 mb-1">{item.label}</p>
+                        <div className="flex items-center gap-1">
+                          {[1, 2, 3, 4, 5].map(n => (
+                            <button key={`${item.k}-${n}`} type="button" onClick={() => item.set(n)} className="focus:outline-none" title={`${n} star${n > 1 ? 's' : ''}`}>
+                              <Star className={`h-6 w-6 ${item.val >= n ? 'text-yellow-500' : 'text-gray-300'}`} />
+                            </button>
+                          ))}
                         </div>
+                      </div>
                     ))}
                   </div>
                   <div className="flex justify-end gap-2">
-                    <button onClick={()=>{ setShowRate(false); setRatePunctuality(0); setRateQuality(0); setRateCommunication(0); setRateReliability(0); }} className="btn-secondary">Cancel</button>
+                    <button onClick={() => { setShowRate(false); setRatePunctuality(0); setRateQuality(0); setRateCommunication(0); setRateReliability(0); }} className="btn-secondary">Cancel</button>
                     <button
-                      disabled={submittingRate || [ratePunctuality, rateQuality, rateCommunication, rateReliability].some(v=>v===0)}
-                      onClick={async ()=>{
+                      disabled={submittingRate || [ratePunctuality, rateQuality, rateCommunication, rateReliability].some(v => v === 0)}
+                      onClick={async () => {
                         try {
                           setSubmittingRate(true);
                           await reviewAPI.create({

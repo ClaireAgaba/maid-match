@@ -97,7 +97,8 @@ class ChangePasswordSerializer(serializers.Serializer):
 
 class LoginSerializer(serializers.Serializer):
     """
-    Serializer for user login
+    Serializer for user login using phone number
     """
-    username = serializers.CharField(required=True)
+    phone_number = serializers.CharField(required=True)
     password = serializers.CharField(required=True, write_only=True)
+
