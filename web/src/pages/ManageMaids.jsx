@@ -20,6 +20,24 @@ const ManageMaids = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
 
+  // Helper to parse a maid's service_pricing text (one "Service: value" per line)
+  // into a map for quick lookup when rendering services offered.
+  const parseServiceRates = (service_pricing) => {
+    if (!service_pricing) return {};
+    const raw = String(service_pricing || '');
+    const lines = raw.split('\n').map((l) => l.trim()).filter((l) => l.length > 0);
+    const map = {};
+    lines.forEach((line) => {
+      const idx = line.indexOf(':');
+      if (idx !== -1) {
+        const name = line.slice(0, idx).trim();
+        const value = line.slice(idx + 1).trim();
+        if (name) map[name] = value;
+      }
+    });
+    return map;
+  };
+
   useEffect(() => {
     if (!isAdmin) {
       navigate('/dashboard');
@@ -34,7 +52,7 @@ const ManageMaids = () => {
       const params = {
         page: currentPage,
       };
-      
+
       if (filterStatus !== 'all') {
         params.availability_status = filterStatus === 'available';
       }
@@ -302,12 +320,6 @@ const ManageMaids = () => {
                       Disabled
                     </span>
                   )}
-                  
-                  {maid.hourly_rate && (
-                    <span className="text-sm font-semibold text-gray-900">
-                      UGX {maid.hourly_rate}/hr
-                    </span>
-                  )}
                 </div>
 
                 {/* Actions */}
@@ -454,10 +466,6 @@ const ManageMaids = () => {
                     <p className="font-medium">{selectedMaid.experience_years} years</p>
                   </div>
                   <div>
-                    <p className="text-sm text-gray-600">Starting Pay</p>
-                    <p className="font-medium">UGX {selectedMaid.hourly_rate || 'Not set'}</p>
-                  </div>
-                  <div>
                     <p className="text-sm text-gray-600">Rating</p>
                     <p className="font-medium flex items-center">
                       <Star className="h-4 w-4 text-yellow-500 mr-1" />
@@ -479,11 +487,29 @@ const ManageMaids = () => {
                 </div>
               )}
 
-              {/* Skills */}
+              {/* Services Offered */}
               {selectedMaid.skills && (
                 <div>
-                  <h4 className="font-semibold text-gray-900 mb-2">Skills</h4>
-                  <p className="text-gray-600">{selectedMaid.skills}</p>
+                  <h4 className="font-semibold text-gray-900 mb-2">Services Offered</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {selectedMaid.skills
+                      .split(',')
+                      .map((s) => s.trim())
+                      .filter((s) => s.length > 0)
+                      .map((service) => {
+                        const rates = parseServiceRates(selectedMaid.service_pricing);
+                        const rate = rates[service];
+                        return (
+                          <span
+                            key={service}
+                            className="px-3 py-1 bg-gray-100 text-gray-800 rounded-full text-sm"
+                          >
+                            {service}
+                            {rate ? ` (Starting Service fee: ${rate})` : ''}
+                          </span>
+                        );
+                      })}
+                  </div>
                 </div>
               )}
 

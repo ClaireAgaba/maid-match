@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import BrandLogo from '../components/BrandLogo';
 import Navbar from '../components/Navbar';
-import { maidAPI, homeownerAPI, authAPI, reviewAPI, cleaningCompanyAPI, homeNursingAPI } from '../services/api';
+import { maidAPI, homeownerAPI, authAPI, reviewAPI, cleaningCompanyAPI, homeNursingAPI, jobAPI, applicationAPI } from '../services/api';
 import {
   Briefcase, Users, Star, Settings, LogOut,
   Home, Calendar, DollarSign, TrendingUp, User,
@@ -46,6 +46,51 @@ const Dashboard = () => {
   const [viewerIndex, setViewerIndex] = useState(0);
   // home nurse state
   const [nurseProfile, setNurseProfile] = useState(null);
+  // homeowner jobs (service requests)
+  const [homeownerJobs, setHomeownerJobs] = useState([]);
+  const [homeownerJobsLoading, setHomeownerJobsLoading] = useState(false);
+  const [showJobResponsesModal, setShowJobResponsesModal] = useState(false);
+  const [jobResponses, setJobResponses] = useState([]);
+  const [jobResponsesLoading, setJobResponsesLoading] = useState(false);
+  const [jobResponsesFor, setJobResponsesFor] = useState(null); // job object
+  const [showServiceModal, setShowServiceModal] = useState(false);
+  const [serviceTab, setServiceTab] = useState('post'); // 'post' | 'schedule'
+  const [editingJobId, setEditingJobId] = useState(null);
+  const [editingJobKind, setEditingJobKind] = useState(null); // 'post' | 'schedule' | null
+  // maid: browse homeowner jobs
+  const [showMaidJobsModal, setShowMaidJobsModal] = useState(false);
+  const [maidJobs, setMaidJobs] = useState([]);
+  const [maidJobsLoading, setMaidJobsLoading] = useState(false);
+  const [maidApplicationsByJob, setMaidApplicationsByJob] = useState({}); // jobId -> status
+  // nurse: browse homeowner jobs
+  const [showNurseJobsModal, setShowNurseJobsModal] = useState(false);
+  const [nurseJobs, setNurseJobs] = useState([]);
+  const [nurseJobsLoading, setNurseJobsLoading] = useState(false);
+  const [nurseApplicationsByJob, setNurseApplicationsByJob] = useState({}); // jobId -> status
+  // cleaning company: browse homeowner jobs
+  const [showCompanyJobsModal, setShowCompanyJobsModal] = useState(false);
+  const [companyJobs, setCompanyJobs] = useState([]);
+  const [companyJobsLoading, setCompanyJobsLoading] = useState(false);
+  const [postJobForm, setPostJobForm] = useState({
+    service_target: 'maid', // Maid, cleaning_company, home_nurse
+    description: '',
+    job_date: '',
+    start_time: '',
+    end_time: '',
+    rate: '',
+    location: '',
+  });
+  const [scheduleForm, setScheduleForm] = useState({
+    service_title: '',
+    description: '',
+    job_date: '',
+    start_time: '',
+    end_time: '',
+    rate: '',
+    location: '',
+    service_target: 'maid',
+  });
+  const [submittingService, setSubmittingService] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -72,6 +117,18 @@ const Dashboard = () => {
           const homeownerResponse = await homeownerAPI.getMyProfile();
           setCurrentUser(userResponse.data);
           setHomeownerProfile(homeownerResponse.data);
+          // Load homeowner jobs (service requests)
+          try {
+            setHomeownerJobsLoading(true);
+            const respJobs = await jobAPI.getAll({ ordering: '-created_at' });
+            const data = respJobs.data?.results || respJobs.data || [];
+            setHomeownerJobs(Array.isArray(data) ? data : []);
+          } catch (e) {
+            console.error('Failed to load homeowner jobs', e);
+            setHomeownerJobs([]);
+          } finally {
+            setHomeownerJobsLoading(false);
+          }
           try {
             const rm = await homeownerAPI.recentMaids();
             setRecentMaids(Array.isArray(rm.data) ? rm.data : []);
@@ -128,6 +185,320 @@ const Dashboard = () => {
     };
   }, [isMaid, isHomeowner, isHomeNurse, user?.user_type]);
 
+  // Homeowner: load responses (applications) for a given job
+  const loadJobResponses = async (job) => {
+    if (!isHomeowner || !job) return;
+    try {
+      setJobResponsesLoading(true);
+      setJobResponsesFor(job);
+      const resp = await applicationAPI.getAll({ job: job.id });
+      const data = resp.data?.results || resp.data || [];
+      let appsArray = Array.isArray(data) ? data : [];
+      // Backend list currently returns all applications for this homeowner;
+      // ensure we only keep applications for this specific job.
+      appsArray = appsArray.filter((app) => {
+        if (app.job && typeof app.job === 'object' && app.job.id !== undefined) {
+          return app.job.id === job.id;
+        }
+        // Fallback if API ever returns job as a plain id
+        if (typeof app.job === 'number') {
+          return app.job === job.id;
+        }
+        return false;
+      });
+      setJobResponses(appsArray);
+      setShowJobResponsesModal(true);
+    } catch (e) {
+      console.error('Failed to load job responses', e);
+      alert('Failed to load responses for this job.');
+    } finally {
+      setJobResponsesLoading(false);
+    }
+  };
+
+  // Homeowner: open an existing job in edit mode
+  const openEditJob = (job) => {
+    if (!job) return;
+    // Heuristic: scheduled services have pattern "<Target> - <service>"
+    const isSchedule = job.title && job.title.includes(' - ');
+    if (isSchedule) {
+      const [targetLabel, rest] = job.title.split(' - ');
+      let service_target = 'maid';
+      if (targetLabel.toLowerCase().includes('cleaning')) service_target = 'cleaning_company';
+      else if (targetLabel.toLowerCase().includes('nurse')) service_target = 'home_nurse';
+
+      setScheduleForm({
+        service_title: rest || job.title,
+        description: job.description || '',
+        job_date: job.job_date || '',
+        start_time: job.start_time || '',
+        end_time: job.end_time || '',
+        rate: job.hourly_rate ? String(job.hourly_rate) : '',
+        location: job.location || '',
+        service_target,
+      });
+      setEditingJobId(job.id);
+      setEditingJobKind('schedule');
+      setServiceTab('schedule');
+      setShowServiceModal(true);
+    } else {
+      // Infer service_target from title where possible
+      let service_target = 'maid';
+      const title = (job.title || '').toLowerCase();
+      if (title.includes('cleaning')) service_target = 'cleaning_company';
+      else if (title.includes('nurse')) service_target = 'home_nurse';
+
+      setPostJobForm({
+        service_target,
+        description: job.description || '',
+        job_date: job.job_date || '',
+        start_time: job.start_time || '',
+        end_time: job.end_time || '',
+        rate: job.hourly_rate ? String(job.hourly_rate) : '',
+        location: job.location || '',
+      });
+      setEditingJobId(job.id);
+      setEditingJobKind('post');
+      setServiceTab('post');
+      setShowServiceModal(true);
+    }
+  };
+
+  // Homeowner: reload jobs (service requests)
+  const reloadHomeownerJobs = async () => {
+    if (!isHomeowner) return;
+    try {
+      setHomeownerJobsLoading(true);
+      const respJobs = await jobAPI.getAll({ ordering: '-created_at' });
+      const data = respJobs.data?.results || respJobs.data || [];
+      setHomeownerJobs(Array.isArray(data) ? data : []);
+    } catch (e) {
+      console.error('Failed to reload homeowner jobs', e);
+    } finally {
+      setHomeownerJobsLoading(false);
+    }
+  };
+
+  // Maid: load homeowner jobs for browsing
+  const loadMaidJobs = async () => {
+    if (!isMaid || !maidProfile) return;
+    try {
+      setMaidJobsLoading(true);
+      const [jobsResp, appsResp] = await Promise.all([
+        jobAPI.getAll({ ordering: '-created_at' }),
+        applicationAPI.getAll({}),
+      ]);
+
+      const data = jobsResp.data?.results || jobsResp.data || [];
+      let jobsArray = Array.isArray(data) ? data : [];
+      // Only show maid-targeted jobs to maids. We use the title convention:
+      // "Maid" or "Maid - ..." for maid jobs.
+      jobsArray = jobsArray.filter((job) => {
+        const title = (job.title || '').toLowerCase();
+        return title.startsWith('maid');
+      });
+      setMaidJobs(jobsArray);
+
+      // Build map of this maid's applications by job id so they can see status
+      const appsData = appsResp.data?.results || appsResp.data || [];
+      const map = {};
+      if (Array.isArray(appsData)) {
+        appsData.forEach((app) => {
+          if (!app.maid) return;
+          const maidId = app.maid.id;
+          if (!maidId || maidId !== maidProfile.id) return;
+          const jobId = app.job && typeof app.job === 'object' && app.job.id !== undefined
+            ? app.job.id
+            : typeof app.job === 'number'
+              ? app.job
+              : null;
+          if (!jobId) return;
+          map[jobId] = app.status || 'pending';
+        });
+      }
+      setMaidApplicationsByJob(map);
+    } catch (e) {
+      console.error('Failed to load jobs for maid browse view', e);
+    } finally {
+      setMaidJobsLoading(false);
+    }
+  };
+
+  // Nurse: load homeowner jobs for browsing (only nurse-targeted)
+  const loadNurseJobs = async () => {
+    if (!isHomeNurse || !nurseProfile) return;
+    try {
+      setNurseJobsLoading(true);
+      const [jobsResp, appsResp] = await Promise.all([
+        jobAPI.getAll({ ordering: '-created_at' }),
+        applicationAPI.getAll({}),
+      ]);
+
+      const data = jobsResp.data?.results || jobsResp.data || [];
+      let jobsArray = Array.isArray(data) ? data : [];
+      // Only show nurse-targeted jobs to nurses. Titles start with "Home nurse".
+      jobsArray = jobsArray.filter((job) => {
+        const title = (job.title || '').toLowerCase();
+        return title.startsWith('home nurse');
+      });
+      setNurseJobs(jobsArray);
+
+      // Build map of this nurse's applications by job id so they can see status
+      const appsData = appsResp.data?.results || appsResp.data || [];
+      const map = {};
+      if (Array.isArray(appsData)) {
+        appsData.forEach((app) => {
+          if (!app.nurse) return;
+          const nurseId = app.nurse.id;
+          if (!nurseId || nurseId !== nurseProfile.id) return;
+          const jobId = app.job && typeof app.job === 'object' && app.job.id !== undefined
+            ? app.job.id
+            : typeof app.job === 'number'
+              ? app.job
+              : null;
+          if (!jobId) return;
+          map[jobId] = app.status || 'pending';
+        });
+      }
+      setNurseApplicationsByJob(map);
+    } catch (e) {
+      console.error('Failed to load jobs for nurse browse view', e);
+    } finally {
+      setNurseJobsLoading(false);
+    }
+  };
+
+  // Cleaning company: load homeowner jobs for browsing (only cleaning-company-targeted)
+  const loadCompanyJobs = async () => {
+    if (user?.user_type !== 'cleaning_company') return;
+    try {
+      setCompanyJobsLoading(true);
+      const resp = await jobAPI.getAll({ ordering: '-created_at' });
+      const data = resp.data?.results || resp.data || [];
+      let jobsArray = Array.isArray(data) ? data : [];
+      // Only show cleaning-company-targeted jobs. Titles start with "Cleaning company".
+      jobsArray = jobsArray.filter((job) => {
+        const title = (job.title || '').toLowerCase();
+        return title.startsWith('cleaning company');
+      });
+      setCompanyJobs(jobsArray);
+    } catch (e) {
+      console.error('Failed to load jobs for cleaning company browse view', e);
+    } finally {
+      setCompanyJobsLoading(false);
+    }
+  };
+
+  // Homeowner: create a live-in maid job post
+  const handleCreatePostJob = async (e) => {
+    e.preventDefault();
+    if (!postJobForm.description.trim()) {
+      alert('Please describe the kind of maid you are looking for.');
+      return;
+    }
+    if (!postJobForm.job_date) {
+      alert('Please select a preferred date for this request.');
+      return;
+    }
+    setSubmittingService(true);
+    try {
+      // backend requires times; use a broad default day range but do not show fields to user
+      const startTime = postJobForm.start_time || '08:00';
+      const endTime = postJobForm.end_time || '17:00';
+
+      const targetLabel = postJobForm.service_target === 'cleaning_company'
+        ? 'Cleaning company'
+        : postJobForm.service_target === 'home_nurse'
+          ? 'Home nurse'
+          : 'Maid';
+
+      const payload = {
+        title: targetLabel,
+        description: postJobForm.description,
+        location: postJobForm.location || currentUser?.address || '',
+        job_date: postJobForm.job_date,
+        start_time: startTime,
+        end_time: endTime,
+        hourly_rate: postJobForm.rate ? Number(postJobForm.rate) : 0,
+      };
+      if (editingJobId && editingJobKind === 'post') {
+        await jobAPI.update(editingJobId, payload);
+      } else {
+        await jobAPI.create(payload);
+      }
+      await reloadHomeownerJobs();
+      setShowServiceModal(false);
+      setPostJobForm({
+        service_target: 'maid',
+        description: '',
+        job_date: '',
+        start_time: '',
+        end_time: '',
+        rate: '',
+        location: '',
+      });
+      setEditingJobId(null);
+      setEditingJobKind(null);
+    } catch (err) {
+      console.error('Failed to create job', err);
+      alert('Failed to submit your job. Please try again.');
+    } finally {
+      setSubmittingService(false);
+    }
+  };
+
+  // Homeowner: create a scheduled one-off service
+  const handleCreateScheduledService = async (e) => {
+    e.preventDefault();
+    if (!scheduleForm.service_title.trim()) {
+      alert('Please enter the type of service you are interested in.');
+      return;
+    }
+    if (!scheduleForm.job_date || !scheduleForm.start_time || !scheduleForm.end_time) {
+      alert('Please select a date and time for this service.');
+      return;
+    }
+    setSubmittingService(true);
+    try {
+      const targetLabel = scheduleForm.service_target === 'cleaning_company'
+        ? 'Cleaning company'
+        : scheduleForm.service_target === 'home_nurse'
+          ? 'Home nurse'
+          : 'Maid';
+
+      const payload = {
+        title: `${targetLabel} - ${scheduleForm.service_title}`,
+        description: scheduleForm.description || 'Scheduled home service request',
+        location: scheduleForm.location || currentUser?.address || '',
+        job_date: scheduleForm.job_date,
+        start_time: scheduleForm.start_time,
+        end_time: scheduleForm.end_time,
+        hourly_rate: scheduleForm.rate ? Number(scheduleForm.rate) : 0,
+      };
+      if (editingJobId && editingJobKind === 'schedule') {
+        await jobAPI.update(editingJobId, payload);
+      } else {
+        await jobAPI.create(payload);
+      }
+      await reloadHomeownerJobs();
+      setShowServiceModal(false);
+      setScheduleForm({
+        service_title: '',
+        description: '',
+        job_date: '',
+        start_time: '',
+        end_time: '',
+        rate: '',
+        location: '',
+      });
+    } catch (err) {
+      console.error('Failed to create scheduled service', err);
+      alert('Failed to submit your scheduled service. Please try again.');
+    } finally {
+      setSubmittingService(false);
+    }
+  };
+
   const handleLogout = async () => {
     await logout();
     navigate('/login');
@@ -167,6 +538,78 @@ const Dashboard = () => {
     if (isHomeNurse) return nurseProfile;
     if (user?.user_type === 'cleaning_company') return companyProfile;
     return user;
+  })();
+
+  // Helper: compute maid age from date_of_birth, if available
+  const maidAge = (() => {
+    if (!isMaid || !maidProfile || !maidProfile.date_of_birth) return null;
+    try {
+      const dob = new Date(maidProfile.date_of_birth);
+      if (Number.isNaN(dob.getTime())) return null;
+      const today = new Date();
+      let age = today.getFullYear() - dob.getFullYear();
+      const m = today.getMonth() - dob.getMonth();
+      if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) {
+        age--;
+      }
+      return age;
+    } catch {
+      return null;
+    }
+  })();
+
+  // Map of per-service starting pay for maids, parsed from the
+  // free-text service_pricing field (one "Service: value" per line).
+  const maidServiceRates = (() => {
+    if (!isMaid || !maidProfile || !maidProfile.service_pricing) return {};
+    const raw = String(maidProfile.service_pricing || '');
+    const lines = raw.split('\n').map((l) => l.trim()).filter((l) => l.length > 0);
+    const map = {};
+    lines.forEach((line) => {
+      const idx = line.indexOf(':');
+      if (idx !== -1) {
+        const name = line.slice(0, idx).trim();
+        const value = line.slice(idx + 1).trim();
+        if (name) map[name] = value;
+      }
+    });
+    return map;
+  })();
+
+  // Map of per-service starting pay for cleaning companies, parsed from
+  // companyProfile.service_pricing (one "Service: value" per line).
+  const companyServiceRates = (() => {
+    if (user?.user_type !== 'cleaning_company' || !companyProfile || !companyProfile.service_pricing) return {};
+    const raw = String(companyProfile.service_pricing || '');
+    const lines = raw.split('\n').map((l) => l.trim()).filter((l) => l.length > 0);
+    const map = {};
+    lines.forEach((line) => {
+      const idx = line.indexOf(':');
+      if (idx !== -1) {
+        const name = line.slice(0, idx).trim();
+        const value = line.slice(idx + 1).trim();
+        if (name) map[name] = value;
+      }
+    });
+    return map;
+  })();
+
+  // Map of per-category starting pay for nurses, parsed from
+  // nurseProfile.service_pricing (one "Category: value" per line).
+  const nurseServiceRates = (() => {
+    if (!isHomeNurse || !nurseProfile || !nurseProfile.service_pricing) return {};
+    const raw = String(nurseProfile.service_pricing || '');
+    const lines = raw.split('\n').map((l) => l.trim()).filter((l) => l.length > 0);
+    const map = {};
+    lines.forEach((line) => {
+      const idx = line.indexOf(':');
+      if (idx !== -1) {
+        const name = line.slice(0, idx).trim();
+        const value = line.slice(idx + 1).trim();
+        if (name) map[name] = value;
+      }
+    });
+    return map;
   })();
 
   return (
@@ -227,6 +670,270 @@ const Dashboard = () => {
           </div>
         )}
 
+        {/* Cleaning Company: Browse Jobs modal (view cleaning-company-targeted homeowner jobs) */}
+        {user?.user_type === 'cleaning_company' && showCompanyJobsModal && (
+          <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 px-4">
+            <div className="bg-white rounded-2xl shadow-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="flex items-center justify-between px-5 py-4 border-b">
+                <h3 className="text-lg font-semibold text-gray-900">Browse Cleaning Jobs</h3>
+                <button
+                  type="button"
+                  className="text-gray-400 hover:text-gray-600"
+                  onClick={() => setShowCompanyJobsModal(false)}
+                >
+                  ✕
+                </button>
+              </div>
+              <div className="px-5 py-4">
+                {companyJobsLoading ? (
+                  <p className="text-sm text-gray-500">Loading jobs...</p>
+                ) : companyJobs && companyJobs.length > 0 ? (
+                  <ul className="divide-y divide-gray-100">
+                    {companyJobs.map((job) => (
+                      <li key={job.id} className="py-3 flex flex-col gap-2">
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                          <div>
+                            <p className="font-medium text-gray-900 text-sm">{job.title}</p>
+                            {job.description && (
+                              <p className="text-xs text-gray-600 mt-0.5 max-w-xl">{job.description}</p>
+                            )}
+                            <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-gray-500">
+                              {job.job_date && <span>{job.job_date}</span>}
+                              {job.start_time && job.end_time && (
+                                <span>• {job.start_time} - {job.end_time}</span>
+                              )}
+                              {job.location && <span>• {job.location}</span>}
+                              {job.hourly_rate != null && (
+                                <span>• Service pay: UGX {job.hourly_rate}</span>
+                              )}
+                              {job.status && (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-gray-100 text-gray-700 text-[11px] font-medium">
+                                  {job.status}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex gap-2 mt-1">
+                          <button
+                            type="button"
+                            className="px-3 py-1 rounded-full text-xs font-medium bg-primary-600 text-white hover:bg-primary-700"
+                            onClick={async () => {
+                              try {
+                                const note = window.prompt('Write a short message to the homeowner about why your company is a good fit for this job (optional):');
+                                await applicationAPI.create({
+                                  job: job.id,
+                                  cover_letter: note || '',
+                                });
+                                alert('Your interest and message have been sent to the homeowner.');
+                              } catch (err) {
+                                console.error('Failed to submit interest', err);
+                                alert('Could not submit your interest for this job. It may already have your application.');
+                              }
+                            }}
+                          >
+                            Show interest
+                          </button>
+                          <button
+                            type="button"
+                            className="px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700 hover:bg-gray-200"
+                            onClick={() => alert('You have declined this job for now.')}
+                          >
+                            Decline
+                          </button>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-sm text-gray-500">No cleaning jobs found yet. Check back later.</p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Home Nurse: Browse Jobs modal (view nurse-targeted homeowner jobs) */}
+        {isHomeNurse && showNurseJobsModal && (
+          <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 px-4">
+            <div className="bg-white rounded-2xl shadow-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="flex items-center justify-between px-5 py-4 border-b">
+                <h3 className="text-lg font-semibold text-gray-900">Browse Home Care Jobs</h3>
+                <button
+                  type="button"
+                  className="text-gray-400 hover:text-gray-600"
+                  onClick={() => setShowNurseJobsModal(false)}
+                >
+                  ✕
+                </button>
+              </div>
+              <div className="px-5 py-4">
+                {nurseJobsLoading ? (
+                  <p className="text-sm text-gray-500">Loading jobs...</p>
+                ) : nurseJobs && nurseJobs.length > 0 ? (
+                  <ul className="divide-y divide-gray-100">
+                    {nurseJobs.map((job) => (
+                      <li key={job.id} className="py-3 flex flex-col gap-2">
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                          <div>
+                            <p className="font-medium text-gray-900 text-sm">{job.title}</p>
+                            {job.description && (
+                              <p className="text-xs text-gray-600 mt-0.5 max-w-xl">{job.description}</p>
+                            )}
+                            <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-gray-500">
+                              {job.job_date && <span>{job.job_date}</span>}
+                              {job.start_time && job.end_time && (
+                                <span>• {job.start_time} - {job.end_time}</span>
+                              )}
+                              {job.location && <span>• {job.location}</span>}
+                              {job.hourly_rate != null && (
+                                <span>• Service pay: UGX {job.hourly_rate}</span>
+                              )}
+                              {job.status && (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-gray-100 text-gray-700 text-[11px] font-medium">
+                                  {job.status}
+                                </span>
+                              )}
+                              {nurseApplicationsByJob[job.id] && (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 text-[11px] font-medium">
+                                  My status: {nurseApplicationsByJob[job.id]}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex gap-2 mt-1">
+                          <button
+                            type="button"
+                            className="px-3 py-1 rounded-full text-xs font-medium bg-primary-600 text-white hover:bg-primary-700"
+                            disabled={nurseApplicationsByJob[job.id] === 'accepted' || nurseApplicationsByJob[job.id] === 'pending'}
+                            onClick={async () => {
+                              try {
+                                const note = window.prompt('Write a short message to the homeowner about why you are a good fit for this home care job (optional):');
+                                await applicationAPI.create({
+                                  job: job.id,
+                                  cover_letter: note || '',
+                                });
+                                alert('Your interest and message have been sent to the homeowner.');
+                                await loadNurseJobs();
+                              } catch (err) {
+                                console.error('Failed to submit interest', err);
+                                alert('Could not submit your interest for this job. It may already have your application.');
+                              }
+                            }}
+                          >
+                            Show interest
+                          </button>
+                          <button
+                            type="button"
+                            className="px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700 hover:bg-gray-200"
+                            onClick={() => alert('You have declined this job for now.')}
+                          >
+                            Decline
+                          </button>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-sm text-gray-500">No home care jobs found yet. Check back later.</p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Maid: Browse Jobs modal (view homeowner jobs) */}
+        {isMaid && showMaidJobsModal && (
+          <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 px-4">
+            <div className="bg-white rounded-2xl shadow-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="flex items-center justify-between px-5 py-4 border-b">
+                <h3 className="text-lg font-semibold text-gray-900">Browse Homeowner Jobs</h3>
+                <button
+                  type="button"
+                  className="text-gray-400 hover:text-gray-600"
+                  onClick={() => setShowMaidJobsModal(false)}
+                >
+                  ✕
+                </button>
+              </div>
+              <div className="px-5 py-4">
+                {maidJobsLoading ? (
+                  <p className="text-sm text-gray-500">Loading jobs...</p>
+                ) : maidJobs && maidJobs.length > 0 ? (
+                  <ul className="divide-y divide-gray-100">
+                    {maidJobs.map((job) => (
+                      <li key={job.id} className="py-3 flex flex-col gap-2">
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                          <div>
+                            <p className="font-medium text-gray-900 text-sm">{job.title}</p>
+                            {job.description && (
+                              <p className="text-xs text-gray-600 mt-0.5 max-w-xl">{job.description}</p>
+                            )}
+                            <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-gray-500">
+                              {job.job_date && <span>{job.job_date}</span>}
+                              {job.start_time && job.end_time && (
+                                <span>• {job.start_time} - {job.end_time}</span>
+                              )}
+                              {job.location && <span>• {job.location}</span>}
+                              {job.hourly_rate != null && (
+                                <span>• Service pay: UGX {job.hourly_rate}</span>
+                              )}
+                              {job.status && (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-gray-100 text-gray-700 text-[11px] font-medium">
+                                  {job.status}
+                                </span>
+                              )}
+                              {maidApplicationsByJob[job.id] && (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 text-[11px] font-medium">
+                                  My status: {maidApplicationsByJob[job.id]}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex gap-2 mt-1">
+                          <button
+                            type="button"
+                            className="px-3 py-1 rounded-full text-xs font-medium bg-primary-600 text-white hover:bg-primary-700"
+                            disabled={maidApplicationsByJob[job.id] === 'accepted' || maidApplicationsByJob[job.id] === 'pending'}
+                            onClick={async () => {
+                              try {
+                                const note = window.prompt('Write a short message to the homeowner about why you are a good fit for this job (optional):');
+                                await applicationAPI.create({
+                                  job: job.id,
+                                  cover_letter: note || '',
+                                });
+                                alert('Your interest and message have been sent to the homeowner.');
+                                // Refresh map so status shows as pending
+                                await loadMaidJobs();
+                              } catch (err) {
+                                console.error('Failed to submit interest', err);
+                                alert('Could not submit your interest for this job. It may already have your application.');
+                              }
+                            }}
+                          >
+                            Show interest
+                          </button>
+                          <button
+                            type="button"
+                            className="px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700 hover:bg-gray-200"
+                            onClick={() => alert('You have declined this job for now.')}
+                          >
+                            Decline
+                          </button>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-sm text-gray-500">No open jobs found yet. Check back later.</p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Image Viewer Modal */}
         {viewerOpen && companyGallery.length > 0 && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70" onClick={() => setViewerOpen(false)}>
@@ -254,26 +961,6 @@ const Dashboard = () => {
                       onClick={() => setViewerIndex((viewerIndex + 1) % companyGallery.length)}
                     >Next</button>
                   </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {isMaid && maidProfile && maidProfile.is_verified && (
-          <div className="bg-blue-50 border-l-4 border-blue-400 p-4 mb-6">
-            <div className="flex">
-              <div className="flex-shrink-0">
-                <ShieldCheck className="h-5 w-5 text-blue-400" />
-              </div>
-              <div className="ml-3">
-                <h3 className="text-sm font-medium text-blue-800">
-                  ✓ Account Verified
-                </h3>
-                <div className="mt-2 text-sm text-blue-700">
-                  <p>
-                    Your account has been verified by our admin team. You can now browse and apply for jobs!
-                  </p>
                 </div>
               </div>
             </div>
@@ -349,9 +1036,15 @@ const Dashboard = () => {
             <h3 className="text-xl font-semibold text-gray-900 mb-3">Services Offered</h3>
             {Array.isArray(companyProfile.services) && companyProfile.services.length > 0 ? (
               <div className="flex flex-wrap gap-2">
-                {companyProfile.services.map((svc) => (
-                  <span key={svc.id} className="px-3 py-1 bg-gray-100 text-gray-800 rounded-full text-sm">{svc.name}</span>
-                ))}
+                {companyProfile.services.map((svc) => {
+                  const rate = companyServiceRates[svc.name];
+                  return (
+                    <span key={svc.id} className="px-3 py-1 bg-gray-100 text-gray-800 rounded-full text-sm">
+                      {svc.name}
+                      {rate ? ` (Starting Service fee: ${rate})` : ''}
+                    </span>
+                  );
+                })}
               </div>
             ) : (
               <p className="text-sm text-gray-600">No services added.</p>
@@ -378,8 +1071,16 @@ const Dashboard = () => {
               <div className="flex-1">
                 <h3 className="text-xl sm:text-2xl font-bold text-gray-900">
                   {nurseProfile?.username || user?.username}
-                  {typeof nurseProfile?.age === 'number' && (
-                    <span className="ml-2 text-sm font-normal text-gray-600">• {nurseProfile.age} yrs</span>
+                  {(nurseProfile?.gender || typeof nurseProfile?.age === 'number') && (
+                    <span className="ml-2 text-sm font-normal text-gray-600">
+                      {nurseProfile?.gender && (
+                        <>
+                          {nurseProfile.gender.charAt(0).toUpperCase() + nurseProfile.gender.slice(1)}
+                          {typeof nurseProfile?.age === 'number' ? ' • ' : ''}
+                        </>
+                      )}
+                      {typeof nurseProfile?.age === 'number' && `${nurseProfile.age} yrs`}
+                    </span>
                   )}
                 </h3>
                 <div className="flex flex-wrap items-center gap-2 mt-1">
@@ -438,9 +1139,15 @@ const Dashboard = () => {
             <h3 className="text-xl font-semibold text-gray-900 mb-3">Services Offered</h3>
             {Array.isArray(nurseProfile?.services) && nurseProfile.services.length > 0 ? (
               <div className="flex flex-wrap gap-2">
-                {nurseProfile.services.map((svc) => (
-                  <span key={svc.id} className="px-3 py-1 bg-gray-100 text-gray-800 rounded-full text-sm">{svc.name}</span>
-                ))}
+                {nurseProfile.services.map((svc) => {
+                  const rate = nurseServiceRates[svc.name];
+                  return (
+                    <span key={svc.id} className="px-3 py-1 bg-gray-100 text-gray-800 rounded-full text-sm">
+                      {svc.name}
+                      {rate ? ` (Starting Service fee: ${rate})` : ''}
+                    </span>
+                  );
+                })}
               </div>
             ) : (
               <p className="text-sm text-gray-600">No services added.</p>
@@ -601,18 +1308,34 @@ const Dashboard = () => {
                   <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
                     <div>
                       <h2 className="text-2xl font-bold text-gray-900">{maidProfile.full_name || user?.username}</h2>
-                      <p className="text-gray-500 flex items-center gap-1 mt-1 text-sm">
-                        <Briefcase className="h-4 w-4" />
-                        {maidProfile.category === 'live_in' ? 'Live-in Maid' : 'Temporary Maid'}
-                        {maidProfile.experience_years > 0 && ` • ${maidProfile.experience_years} years exp.`}
-                      </p>
+                      <div className="flex flex-wrap items-center gap-2 mt-1 text-sm text-gray-500">
+                        <span className="inline-flex items-center gap-1">
+                          <Briefcase className="h-4 w-4" />
+                          {maidProfile.category === 'live_in' ? 'Live-in Maid' : maidProfile.category === 'placement' ? 'Domestic Staff Placement' : 'Temporary Maid'}
+                        </span>
+                        {maidProfile.experience_years > 0 && (
+                          <span>• {maidProfile.experience_years} years exp.</span>
+                        )}
+                        {maidProfile.user?.gender && (
+                          <span>• {maidProfile.user.gender}</span>
+                        )}
+                        {typeof maidAge === 'number' && maidAge > 0 && (
+                          <span>• {maidAge} yrs</span>
+                        )}
+                        {maidProfile.is_verified && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-green-100 text-green-700 text-xs font-medium">
+                            <ShieldCheck className="h-3.5 w-3.5" />
+                            Verified Account
+                          </span>
+                        )}
+                      </div>
                     </div>
                     <div className="flex gap-2">
                       <button onClick={() => navigate('/my-profile')} className="btn-secondary text-sm py-2 px-4">View Public Profile</button>
                       <button onClick={() => navigate('/profile-settings')} className="btn-primary text-sm py-2 px-4">Edit Profile</button>
                     </div>
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-gray-50/50 rounded-xl p-4 border border-gray-100">
+                  <div className="grid grid-cols-1 gap-4 bg-gray-50/50 rounded-xl p-4 border border-gray-100">
                     <div className="flex items-center gap-3">
                       <div className="p-2 bg-white rounded-lg shadow-sm text-primary-600 border border-gray-100">
                         <Home className="h-5 w-5" />
@@ -643,15 +1366,6 @@ const Dashboard = () => {
                             >Detect</button>
                           )}
                         </div>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 bg-white rounded-lg shadow-sm text-green-600 border border-gray-100">
-                        <DollarSign className="h-5 w-5" />
-                      </div>
-                      <div>
-                        <p className="text-xs text-gray-500 uppercase font-semibold tracking-wider">Hourly Rate</p>
-                        <p className="text-sm font-medium text-gray-900">{maidProfile.hourly_rate ? `UGX ${maidProfile.hourly_rate}` : 'Not set'}</p>
                       </div>
                     </div>
                   </div>
@@ -696,6 +1410,177 @@ const Dashboard = () => {
                     )}
                   </div>
                 </div>
+
+        {/* Homeowner: Job Responses Modal */}
+        {isHomeowner && showJobResponsesModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+            <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full max-h-[85vh] overflow-y-auto">
+              <div className="flex items-center justify-between px-5 py-4 border-b">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">Responses</h3>
+                  {jobResponsesFor && (
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      For: {jobResponsesFor.title} — {jobResponsesFor.job_date} {jobResponsesFor.location && `• ${jobResponsesFor.location}`}
+                    </p>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  className="text-gray-400 hover:text-gray-600"
+                  onClick={() => {
+                    setShowJobResponsesModal(false);
+                    setJobResponsesFor(null);
+                    setJobResponses([]);
+                  }}
+                >
+                  ✕
+                </button>
+              </div>
+              <div className="px-5 py-4">
+                {jobResponsesLoading ? (
+                  <p className="text-sm text-gray-500">Loading responses...</p>
+                ) : jobResponses && jobResponses.length > 0 ? (
+                  <ul className="divide-y divide-gray-100">
+                    {jobResponses.map((app) => {
+                      const maid = app.maid;
+                      const company = app.cleaning_company;
+                      const nurse = app.nurse;
+
+                      return (
+                        <li key={app.id} className="py-3 flex flex-col gap-2">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex items-start gap-3">
+                              {maid?.profile_photo && (
+                                <img
+                                  src={maid.profile_photo}
+                                  alt={maid.full_name || maid.username || 'Maid'}
+                                  className="h-10 w-10 rounded-full object-cover border border-gray-200"
+                                />
+                              )}
+                              {company?.display_photo_url && (
+                                <img
+                                  src={company.display_photo_url}
+                                  alt={company.company_name || company.username || 'Cleaning company'}
+                                  className="h-10 w-10 rounded-full object-cover border border-gray-200"
+                                />
+                              )}
+                              {nurse?.display_photo && (
+                                <img
+                                  src={nurse.display_photo}
+                                  alt={nurse.username || 'Home nurse'}
+                                  className="h-10 w-10 rounded-full object-cover border border-gray-200"
+                                />
+                              )}
+                              <div>
+                                <p className="text-sm font-medium text-gray-900">
+                                  {maid?.full_name || maid?.username || company?.company_name || company?.username || nurse?.username || 'Applicant'}
+                                </p>
+                                <div className="flex flex-wrap items-center gap-2 text-[11px] text-gray-500 mt-0.5">
+                                  {maid?.gender && <span>{maid.gender}</span>}
+                                  {maid?.age && <span>• {maid.age} yrs</span>}
+                                  {maid?.location && <span>• {maid.location}</span>}
+                                  {typeof maid?.rating === 'number' && (
+                                    <span>• Rating: {maid.rating.toFixed ? maid.rating.toFixed(1) : maid.rating}/5</span>
+                                  )}
+                                  {typeof maid?.total_jobs_completed === 'number' && (
+                                    <span>• Jobs: {maid.total_jobs_completed}</span>
+                                  )}
+                                  {company?.location && <span>{company.location}</span>}
+                                  {nurse?.location && <span>{nurse.location}</span>}
+                                </div>
+                                {maid?.skills && (
+                                  <p className="text-[11px] text-gray-500 mt-1">
+                                    Services offered: {maid.skills}
+                                  </p>
+                                )}
+                                {company?.service_pricing && (
+                                  <p className="text-[11px] text-gray-500 mt-1">
+                                    Services offered: {company.service_pricing}
+                                  </p>
+                                )}
+                                {nurse?.service_pricing && (
+                                  <p className="text-[11px] text-gray-500 mt-1">
+                                    Services offered: {nurse.service_pricing}
+                                  </p>
+                                )}
+                                {app.proposed_rate && (
+                                  <p className="text-xs text-gray-600 mt-0.5">
+                                    Proposed pay: UGX {app.proposed_rate}
+                                  </p>
+                                )}
+                                {app.cover_letter && (
+                                  <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">
+                                    {app.cover_letter}
+                                  </p>
+                                )}
+                                {app.status && (
+                                  <p className="text-[11px] text-gray-500 mt-0.5">Status: {app.status}</p>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="text-xs text-gray-500">
+                              {app.status === 'accepted' && (
+                                <p className="text-xs text-green-700 font-medium">
+                                  {maid && (
+                                    <>Maid contact: {maid.phone_number || maid.user?.phone_number || maid.user?.email || 'Contact details on file'}</>
+                                  )}
+                                  {company && !maid && (
+                                    <>Company contact: {company.phone_number || company.email || 'Contact details on file'}</>
+                                  )}
+                                  {nurse && !maid && !company && (
+                                    <>Nurse contact: {nurse.phone_number || nurse.email || 'Contact details on file'}</>
+                                  )}
+                                </p>
+                              )}
+                            </div>
+                            <div className="flex gap-2">
+                              <button
+                                type="button"
+                                className="px-3 py-1 rounded-full text-xs font-medium bg-green-600 text-white hover:bg-green-700 disabled:opacity-50"
+                                disabled={app.status === 'accepted'}
+                                onClick={async () => {
+                                  try {
+                                    await applicationAPI.accept(app.id);
+                                    await loadJobResponses(jobResponsesFor);
+                                  } catch (err) {
+                                    console.error('Failed to accept application', err);
+                                    alert('Could not accept this application.');
+                                  }
+                                }}
+                              >
+                                Accept
+                              </button>
+                              <button
+                                type="button"
+                                className="px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 disabled:opacity-50"
+                                disabled={app.status === 'rejected'}
+                                onClick={async () => {
+                                  try {
+                                    await applicationAPI.reject(app.id);
+                                    await loadJobResponses(jobResponsesFor);
+                                  } catch (err) {
+                                    console.error('Failed to reject application', err);
+                                    alert('Could not reject this application.');
+                                  }
+                                }}
+                              >
+                                Reject
+                              </button>
+                            </div>
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                ) : (
+                  <p className="text-sm text-gray-500">No one has responded to this request yet.</p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
 
                 {/* Info */}
                 <div className="flex-1 w-full">
@@ -860,15 +1745,124 @@ const Dashboard = () => {
           )}
         </div>
 
+        {/* Maid: Services Offered row (above Quick Actions) */}
+        {isMaid && maidProfile && (
+          <div className="card mb-8">
+            <h3 className="text-xl font-semibold text-gray-900 mb-3">Services Offered</h3>
+            {maidProfile.skills ? (
+              <div className="flex flex-wrap gap-2">
+                {maidProfile.skills
+                  .split(',')
+                  .map((s) => s.trim())
+                  .filter((s) => s.length > 0)
+                  .map((s) => {
+                    const rate = maidServiceRates[s];
+                    return (
+                      <span
+                        key={s}
+                        className="px-3 py-1 bg-gray-100 text-gray-800 rounded-full text-sm"
+                      >
+                        {s}
+                        {rate ? ` (Starting Service fee: ${rate})` : ''}
+                      </span>
+                    );
+                  })}
+              </div>
+            ) : (
+              <p className="text-sm text-gray-600">
+                You have not added any services yet. Go to{' '}
+                <button
+                  type="button"
+                  onClick={() => navigate('/profile-settings')}
+                  className="text-primary-600 hover:underline"
+                >
+                  Profile Settings
+                </button>{' '}
+                to update your services.
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* Homeowner: My Service Requests */}
+        {isHomeowner && (
+          <div className="card mb-8">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-semibold text-gray-900">My Service Requests</h3>
+              <button
+                type="button"
+                onClick={reloadHomeownerJobs}
+                className="text-sm text-primary-600 hover:text-primary-700"
+              >
+                Refresh
+              </button>
+            </div>
+            {homeownerJobsLoading ? (
+              <p className="text-sm text-gray-500">Loading your requests...</p>
+            ) : homeownerJobs && homeownerJobs.length > 0 ? (
+              <ul className="divide-y divide-gray-100">
+                {homeownerJobs.map((job) => (
+                  <li
+                    key={job.id}
+                    className="py-3 flex items-center justify-between cursor-pointer hover:bg-gray-50 px-2 rounded"
+                    onClick={() => openEditJob(job)}
+                  >
+                    <div>
+                      <p className="font-medium text-gray-900 text-sm">{job.title}</p>
+                      {job.description && (
+                        <p className="text-xs text-gray-600 line-clamp-2 mt-0.5">{job.description}</p>
+                      )}
+                      <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-gray-500">
+                        {job.job_date && <span>{job.job_date}</span>}
+                        {job.start_time && job.end_time && (
+                          <span>• {job.start_time} - {job.end_time}</span>
+                        )}
+                        {job.location && <span>• {job.location}</span>}
+                        {job.hourly_rate != null && (
+                          <span>• Service pay: UGX {job.hourly_rate}</span>
+                        )}
+                        {job.status && (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-gray-100 text-gray-700 text-[11px] font-medium">
+                            {job.status}
+                          </span>
+                        )}
+                        {isHomeowner && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              loadJobResponses(job);
+                            }}
+                            className="text-[11px] font-medium text-primary-600 hover:text-primary-700 underline ml-1"
+                          >
+                            View responses
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm text-gray-500">
+                You have not posted any jobs or scheduled services yet. Use the <span className="font-medium">Post/Schedule Service</span> button below to create your first request.
+              </p>
+            )}
+          </div>
+        )}
+
         {/* Quick Actions */}
-        <div className="card">
-          <h3 className="text-xl font-bold text-gray-900 mb-6">Quick Actions</h3>
+        <div className="card mb-8">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {isHomeowner && (
               <>
-                <button className="p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md hover:border-primary-200 hover:bg-primary-50/50 transition-all duration-200 group">
+                <button
+                  onClick={() => setShowServiceModal(true)}
+                  className="p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md hover:border-primary-200 hover:bg-primary-50/50 transition-all duration-200 group"
+                >
                   <Briefcase className="w-8 h-8 text-primary-600 mx-auto mb-2" />
-                  <p className="font-medium text-gray-900">Post a Job</p>
+                  <p className="font-medium text-gray-900">Post/Schedule Service</p>
                 </button>
                 <button onClick={() => navigate('/find-maids')} className="p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md hover:border-primary-200 hover:bg-primary-50/50 transition-all duration-200 group">
                   <Users className="w-8 h-8 text-primary-600 mx-auto mb-2" />
@@ -886,7 +1880,10 @@ const Dashboard = () => {
                   <Star className="w-8 h-8 text-primary-600 mx-auto mb-2" />
                   <p className="font-medium text-gray-900">My Reviews</p>
                 </button>
-                <button className="p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md hover:border-primary-200 hover:bg-primary-50/50 transition-all duration-200 group">
+                <button
+                  onClick={() => navigate('/homeowner-profile-settings')}
+                  className="p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md hover:border-primary-200 hover:bg-primary-50/50 transition-all duration-200 group"
+                >
                   <Settings className="w-8 h-8 text-primary-600 mx-auto mb-2" />
                   <p className="font-medium text-gray-900">Settings</p>
                 </button>
@@ -895,7 +1892,13 @@ const Dashboard = () => {
 
             {isMaid && (
               <>
-                <button className="p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md hover:border-primary-200 hover:bg-primary-50/50 transition-all duration-200 group">
+                <button
+                  className="p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md hover:border-primary-200 hover:bg-primary-50/50 transition-all duration-200 group"
+                  onClick={async () => {
+                    setShowMaidJobsModal(true);
+                    await loadMaidJobs();
+                  }}
+                >
                   <Briefcase className="w-8 h-8 text-primary-600 mx-auto mb-2" />
                   <p className="font-medium text-gray-900">Browse Jobs</p>
                 </button>
@@ -957,7 +1960,10 @@ const Dashboard = () => {
             {user?.user_type === 'cleaning_company' && (
               <>
                 <button
-                  onClick={() => navigate('/jobs')}
+                  onClick={async () => {
+                    setShowCompanyJobsModal(true);
+                    await loadCompanyJobs();
+                  }}
                   className="p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md hover:border-primary-200 hover:bg-primary-50/50 transition-all duration-200 group"
                 >
                   <Briefcase className="w-8 h-8 text-primary-600 mx-auto mb-2" />
@@ -976,7 +1982,10 @@ const Dashboard = () => {
             {isHomeNurse && (
               <>
                 <button
-                  onClick={() => navigate('/jobs')}
+                  onClick={async () => {
+                    setShowNurseJobsModal(true);
+                    await loadNurseJobs();
+                  }}
                   className="p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md hover:border-primary-200 hover:bg-primary-50/50 transition-all duration-200 group"
                 >
                   <Briefcase className="w-8 h-8 text-primary-600 mx-auto mb-2" />
@@ -993,6 +2002,240 @@ const Dashboard = () => {
             )}
           </div>
         </div>
+
+        {/* Homeowner: Post/Schedule Service Modal */}
+        {isHomeowner && showServiceModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+            <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+              <div className="flex items-center justify-between px-5 py-4 border-b">
+                <h3 className="text-lg font-semibold text-gray-900">Post / Schedule Service</h3>
+                <button
+                  type="button"
+                  className="text-gray-400 hover:text-gray-600"
+                  onClick={() => {
+                    setShowServiceModal(false);
+                    setEditingJobId(null);
+                    setEditingJobKind(null);
+                  }}
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="px-5 pt-4">
+                <div className="inline-flex rounded-full border border-gray-200 bg-gray-50 p-1 text-xs mb-4">
+                  <button
+                    type="button"
+                    onClick={() => setServiceTab('post')}
+                    className={`px-3 py-1 rounded-full ${serviceTab === 'post' ? 'bg-primary-600 text-white' : 'text-gray-700'}`}
+                  >
+                    Post Job (live-in maid)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setServiceTab('schedule')}
+                    className={`px-3 py-1 rounded-full ${serviceTab === 'schedule' ? 'bg-primary-600 text-white' : 'text-gray-700'}`}
+                  >
+                    Schedule Service
+                  </button>
+                </div>
+              </div>
+
+              {serviceTab === 'post' ? (
+                <form onSubmit={handleCreatePostJob} className="px-5 pb-5 space-y-4">
+                  <p className="text-xs text-gray-500">
+                    Describe the kind of live-in maid you are looking for (experience, age, language,
+                    duties, working hours, days off, etc.). This will be visible to maids.
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Service</label>
+                      <select
+                        className="input-field"
+                        value={postJobForm.service_target}
+                        onChange={(e) => setPostJobForm({ ...postJobForm, service_target: e.target.value })}
+                      >
+                        <option value="maid">Maid</option>
+                        <option value="cleaning_company">Cleaning company</option>
+                        <option value="home_nurse">Home nurse</option>
+                      </select>
+                    </div>
+                    <div className="hidden sm:block"></div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                    <textarea
+                      rows="4"
+                      className="input-field"
+                      placeholder="Describe the maid you are looking for..."
+                      value={postJobForm.description}
+                      onChange={(e) => setPostJobForm({ ...postJobForm, description: e.target.value })}
+                    />
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Preferred date</label>
+                      <input
+                        type="date"
+                        className="input-field"
+                        value={postJobForm.job_date}
+                        onChange={(e) => setPostJobForm({ ...postJobForm, job_date: e.target.value })}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Your location</label>
+                      <input
+                        type="text"
+                        className="input-field"
+                        placeholder="e.g. Kampala, Ntinda"
+                        value={postJobForm.location}
+                        onChange={(e) => setPostJobForm({ ...postJobForm, location: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">What you can pay</label>
+                    <input
+                      type="number"
+                      min="0"
+                      className="input-field"
+                      placeholder="Amount in UGX"
+                      value={postJobForm.rate}
+                      onChange={(e) => setPostJobForm({ ...postJobForm, rate: e.target.value })}
+                    />
+                  </div>
+                  <div className="flex justify-end gap-2 pt-2">
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      onClick={() => setShowServiceModal(false)}
+                      disabled={submittingService}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      className="btn-primary"
+                      disabled={submittingService}
+                    >
+                      {submittingService ? 'Submitting...' : 'Post Job'}
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <form onSubmit={handleCreateScheduledService} className="px-5 pb-5 space-y-4">
+                  <p className="text-xs text-gray-500">
+                    Schedule a one-off home service (e.g. deep cleaning, laundry, babysitting). We will
+                    share this request with available maids.
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Service for</label>
+                      <select
+                        className="input-field"
+                        value={scheduleForm.service_target}
+                        onChange={(e) => setScheduleForm({ ...scheduleForm, service_target: e.target.value })}
+                      >
+                        <option value="maid">Maid</option>
+                        <option value="cleaning_company">Cleaning company</option>
+                        <option value="home_nurse">Home nurse</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Type of service</label>
+                      <input
+                        type="text"
+                        className="input-field"
+                        placeholder="e.g. Deep cleaning, Laundry"
+                        value={scheduleForm.service_title}
+                        onChange={(e) => setScheduleForm({ ...scheduleForm, service_title: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Additional details (optional)</label>
+                    <textarea
+                      rows="3"
+                      className="input-field"
+                      placeholder="Any special instructions for this visit..."
+                      value={scheduleForm.description}
+                      onChange={(e) => setScheduleForm({ ...scheduleForm, description: e.target.value })}
+                    />
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                      <input
+                        type="date"
+                        className="input-field"
+                        value={scheduleForm.job_date}
+                        onChange={(e) => setScheduleForm({ ...scheduleForm, job_date: e.target.value })}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Your location</label>
+                      <input
+                        type="text"
+                        className="input-field"
+                        placeholder="e.g. Kampala, Ntinda"
+                        value={scheduleForm.location}
+                        onChange={(e) => setScheduleForm({ ...scheduleForm, location: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Start time</label>
+                      <input
+                        type="time"
+                        className="input-field"
+                        value={scheduleForm.start_time}
+                        onChange={(e) => setScheduleForm({ ...scheduleForm, start_time: e.target.value })}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">End time</label>
+                      <input
+                        type="time"
+                        className="input-field"
+                        value={scheduleForm.end_time}
+                        onChange={(e) => setScheduleForm({ ...scheduleForm, end_time: e.target.value })}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">What you can pay</label>
+                      <input
+                        type="number"
+                        min="0"
+                        className="input-field"
+                        placeholder="Amount in UGX"
+                        value={scheduleForm.rate}
+                        onChange={(e) => setScheduleForm({ ...scheduleForm, rate: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                  <div className="flex justify-end gap-2 pt-2">
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      onClick={() => setShowServiceModal(false)}
+                      disabled={submittingService}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      className="btn-primary"
+                      disabled={submittingService}
+                    >
+                      {submittingService ? 'Submitting...' : 'Schedule Service'}
+                    </button>
+                  </div>
+                </form>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Recent Activity */}
         <div className="card mt-8">

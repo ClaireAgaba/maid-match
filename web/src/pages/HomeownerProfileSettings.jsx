@@ -4,7 +4,8 @@ import { useAuth } from '../context/AuthContext';
 import { homeownerAPI, authAPI } from '../services/api';
 import { 
   User, Phone, Mail, MapPin, Home as HomeIcon, 
-  Save, CheckCircle, AlertCircle, Camera, Upload, FileText
+  Save, CheckCircle, AlertCircle, Camera, Upload, FileText,
+  Power, CreditCard
 } from 'lucide-react';
 
 const HomeownerProfileSettings = () => {
@@ -203,6 +204,49 @@ const HomeownerProfileSettings = () => {
             <p className="text-green-800">{success}</p>
           </div>
         )}
+
+        {/* Account Deactivation / Take a Break */}
+        <div className="card">
+          <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
+            <Power className="h-5 w-5 mr-2 text-red-600" />
+            Account status
+          </h2>
+          <p className="text-sm text-gray-600 mb-3">
+            Need to take a break from Maid Match? You can temporarily disable your homeowner account.
+            Your profile and jobs will be hidden until you come back.
+          </p>
+          <button
+            type="button"
+            className="btn-secondary border-red-300 text-red-700 hover:bg-red-50 flex items-center"
+            onClick={() => {
+              alert('Account deactivation will be available soon. For now, contact support to disable your account.');
+            }}
+          >
+            <Power className="h-4 w-4 mr-2" />
+            Take a break / Disable account
+          </button>
+        </div>
+
+        {/* Payments & Subscriptions */}
+        <div className="card">
+          <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
+            <CreditCard className="h-5 w-5 mr-2 text-primary-600" />
+            Payments &amp; subscriptions
+          </h2>
+          <p className="text-sm text-gray-600 mb-3">
+            Manage how you pay for services and future subscription plans.
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-700">
+            <div className="p-3 rounded-lg border border-dashed border-gray-300 bg-gray-50">
+              <p className="font-semibold mb-1">Saved payment methods</p>
+              <p className="text-xs text-gray-500">Coming soon – you&apos;ll be able to save and manage cards or mobile money here.</p>
+            </div>
+            <div className="p-3 rounded-lg border border-dashed border-gray-300 bg-gray-50">
+              <p className="font-semibold mb-1">Subscriptions &amp; billing history</p>
+              <p className="text-xs text-gray-500">No active subscriptions yet. This section will show your plans and invoices once enabled.</p>
+            </div>
+          </div>
+        </div>
 
         {/* Error Message */}
         {errors.general && (

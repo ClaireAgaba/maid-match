@@ -3,6 +3,8 @@ from .models import HomeownerProfile, Job, JobApplication, Review
 from maid.models import MaidProfile
 from accounts.serializers import UserSerializer
 from maid.serializers import MaidProfileListSerializer
+from cleaning_company.serializers import CleaningCompanyMinimalSerializer
+from home_nursing.serializers import HomeNurseMinimalSerializer
 
 
 class HomeownerProfileSerializer(serializers.ModelSerializer):
@@ -76,7 +78,7 @@ class JobListSerializer(serializers.ModelSerializer):
     class Meta:
         model = Job
         fields = [
-            'id', 'homeowner_name', 'title', 'location', 'job_date',
+            'id', 'homeowner_name', 'title', 'description', 'location', 'job_date',
             'start_time', 'end_time', 'hourly_rate', 'status',
             'applications_count', 'created_at'
         ]
@@ -91,14 +93,16 @@ class JobApplicationSerializer(serializers.ModelSerializer):
     """
     job = JobListSerializer(read_only=True)
     maid = MaidProfileListSerializer(read_only=True)
+    cleaning_company = CleaningCompanyMinimalSerializer(read_only=True)
+    nurse = HomeNurseMinimalSerializer(read_only=True)
     
     class Meta:
         model = JobApplication
         fields = [
-            'id', 'job', 'maid', 'cover_letter', 'proposed_rate',
-            'status', 'created_at', 'updated_at'
+            'id', 'job', 'maid', 'cleaning_company', 'nurse',
+            'cover_letter', 'proposed_rate', 'status', 'created_at', 'updated_at'
         ]
-        read_only_fields = ['maid', 'status', 'created_at', 'updated_at']
+        read_only_fields = ['maid', 'cleaning_company', 'nurse', 'status', 'created_at', 'updated_at']
 
 
 class JobApplicationCreateSerializer(serializers.ModelSerializer):

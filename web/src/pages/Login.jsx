@@ -6,13 +6,14 @@ import { LogIn, AlertCircle } from 'lucide-react';
 
 const Login = () => {
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { sendLoginPin, verifyLoginPin } = useAuth();
   const [formData, setFormData] = useState({
     phone_number: '',
-    password: '',
+    pin: '',
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [codeSent, setCodeSent] = useState(false);
 
   const handleChange = (e) => {
     setFormData({
@@ -22,12 +23,30 @@ const Login = () => {
     setError('');
   };
 
-  const handleSubmit = async (e) => {
+  const handleSendCode = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError('');
 
-    const result = await login(formData);
+    const result = await sendLoginPin(formData.phone_number.trim());
+
+    if (result.success) {
+      setCodeSent(true);
+    } else {
+      setError(result.error);
+    }
+    setLoading(false);
+  };
+
+  const handleVerify = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+
+    const result = await verifyLoginPin({
+      phone_number: formData.phone_number.trim(),
+      pin: formData.pin.trim(),
+    });
 
     if (result.success) {
       navigate('/dashboard');
@@ -51,7 +70,7 @@ const Login = () => {
 
         {/* Login Form */}
         <div className="card">
-          <form className="space-y-6" onSubmit={handleSubmit}>
+          <form className="space-y-6" onSubmit={codeSent ? handleVerify : handleSendCode}>
             {error && (
               <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg flex items-center gap-2">
                 <AlertCircle className="w-5 h-5" />
@@ -75,21 +94,24 @@ const Login = () => {
               />
             </div>
 
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
-                Password
-              </label>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                required
-                className="input-field"
-                placeholder="Enter your password"
-                value={formData.password}
-                onChange={handleChange}
-              />
-            </div>
+            {codeSent && (
+              <div>
+                <label htmlFor="pin" className="block text-sm font-medium text-gray-700 mb-2">
+                  WhatsApp Code
+                </label>
+                <input
+                  id="pin"
+                  name="pin"
+                  type="text"
+                  maxLength={6}
+                  required
+                  className="input-field tracking-widest text-center"
+                  placeholder="Enter 6-digit code"
+                  value={formData.pin}
+                  onChange={handleChange}
+                />
+              </div>
+            )}
 
             <div className="flex items-center justify-between">
               <div className="flex items-center">
@@ -104,11 +126,16 @@ const Login = () => {
                 </label>
               </div>
 
-              <div className="text-sm">
-                <a href="#" className="font-medium text-primary-600 hover:text-primary-500">
-                  Forgot password?
-                </a>
-              </div>
+              {codeSent && (
+                <button
+                  type="button"
+                  onClick={handleSendCode}
+                  className="text-sm font-medium text-primary-600 hover:text-primary-500"
+                  disabled={loading}
+                >
+                  Resend code
+                </button>
+              )}
             </div>
 
             <button
@@ -119,12 +146,12 @@ const Login = () => {
               {loading ? (
                 <>
                   <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  Signing in...
+                  {codeSent ? 'Verifying...' : 'Sending code...'}
                 </>
               ) : (
                 <>
                   <LogIn className="w-5 h-5" />
-                  Sign In
+                  {codeSent ? 'Sign In' : 'Send WhatsApp Code'}
                 </>
               )}
             </button>

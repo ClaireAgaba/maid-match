@@ -3,6 +3,26 @@ import { useNavigate } from 'react-router-dom';
 import { cleaningCompanyAPI, reviewAPI } from '../services/api';
 import { Users, Search, MapPin, ShieldCheck, X, Star, Mail, Phone, ArrowLeft } from 'lucide-react';
 
+// Helper: parse service_pricing into a map of service -> starting fee
+const parseServiceRates = (service_pricing) => {
+  if (!service_pricing) return {};
+  const raw = String(service_pricing || '');
+  const lines = raw
+    .split('\n')
+    .map((l) => l.trim())
+    .filter((l) => l.length > 0);
+  const map = {};
+  lines.forEach((line) => {
+    const idx = line.indexOf(':');
+    if (idx !== -1) {
+      const name = line.slice(0, idx).trim();
+      const value = line.slice(idx + 1).trim();
+      if (name) map[name] = value;
+    }
+  });
+  return map;
+};
+
 const FindCleaningCompanies = () => {
   const navigate = useNavigate();
   const [items, setItems] = useState([]);
@@ -97,9 +117,16 @@ const FindCleaningCompanies = () => {
                     <p className="text-sm text-gray-600 flex items-center"><MapPin className="h-3 w-3 mr-1" />{c.location || 'Location not set'}</p>
                     <div className="mt-2 flex flex-wrap gap-2">
                       <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 inline-flex items-center gap-1"><ShieldCheck className="h-3 w-3" /> Verified</span>
-                      {Array.isArray(c.services) && c.services.slice(0, 3).map(s => (
-                        <span key={s.id} className="px-2 py-0.5 rounded-full bg-gray-100 text-gray-800 text-xs">{s.name}</span>
-                      ))}
+                      {Array.isArray(c.services) && c.services.slice(0, 3).map(s => {
+                        const rates = parseServiceRates(c.service_pricing);
+                        const rate = rates[s.name];
+                        return (
+                          <span key={s.id} className="px-2 py-0.5 rounded-full bg-gray-100 text-gray-800 text-xs">
+                            {s.name}
+                            {rate ? ` (Starting Service fee: ${rate})` : ''}
+                          </span>
+                        );
+                      })}
                       {Array.isArray(c.services) && c.services.length > 3 && (
                         <span className="text-xs text-gray-600">+{c.services.length - 3} more</span>
                       )}
@@ -144,9 +171,16 @@ const FindCleaningCompanies = () => {
                 <div>
                   <p className="text-gray-900 font-medium mb-1">Services</p>
                   <div className="flex flex-wrap gap-2">
-                    {selected.services.map((s) => (
-                      <span key={s.id} className="px-3 py-1 bg-gray-100 text-gray-800 rounded-full text-sm">{s.name}</span>
-                    ))}
+                    {selected.services.map((s) => {
+                      const rates = parseServiceRates(selected.service_pricing);
+                      const rate = rates[s.name];
+                      return (
+                        <span key={s.id} className="px-3 py-1 bg-gray-100 text-gray-800 rounded-full text-sm">
+                          {s.name}
+                          {rate ? ` (Starting Service fee: ${rate})` : ''}
+                        </span>
+                      );
+                    })}
                   </div>
                 </div>
               )}

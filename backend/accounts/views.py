@@ -5,14 +5,46 @@ from rest_framework.views import APIView
 from django.contrib.auth import authenticate, login, logout, get_user_model
 from django.views.decorators.csrf import ensure_csrf_cookie, csrf_exempt
 from django.utils.decorators import method_decorator
+from django.utils import timezone
+from datetime import timedelta
+import random
+import requests
+from django.conf import settings
 from .serializers import (
     UserSerializer, UserRegistrationSerializer, UserUpdateSerializer,
-    ChangePasswordSerializer, LoginSerializer
+    ChangePasswordSerializer, LoginSerializer, SendLoginPinSerializer,
+    VerifyLoginPinSerializer
 )
 from maid.models import MaidProfile
 from homeowner.models import HomeownerProfile
+from .models import LoginOTP
 
 User = get_user_model()
+
+
+def send_whatsapp_message(phone_number, message):
+    access_token = getattr(settings, 'WHATSAPP_ACCESS_TOKEN', None)
+    phone_number_id = getattr(settings, 'WHATSAPP_PHONE_NUMBER_ID', None)
+    if not access_token or not phone_number_id:
+        print("[WhatsApp] Missing configuration: access_token or phone_number_id not set")
+        return
+
+    url = f"https://graph.facebook.com/v20.0/{phone_number_id}/messages"
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Content-Type": "application/json",
+    }
+    payload = {
+        "messaging_product": "whatsapp",
+        "to": phone_number,
+        "type": "text",
+        "text": {"body": message},
+    }
+    try:
+        resp = requests.post(url, json=payload, headers=headers, timeout=10)
+        print(f"[WhatsApp] Sent message to {phone_number}: status={resp.status_code}, body={resp.text}")
+    except Exception as exc:
+        print(f"[WhatsApp] Error sending message: {exc}")
 
 
 @method_decorator(ensure_csrf_cookie, name='dispatch')
@@ -70,7 +102,7 @@ class UserRegistrationView(APIView):
                 )
             # Log the user in so subsequent requests are authenticated immediately
             try:
-                login(request, user)
+                login(request, user, backend='accounts.backends.PhoneNumberBackend')
             except Exception:
                 pass
 
@@ -82,6 +114,31 @@ class UserRegistrationView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+class SendLoginPinView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        serializer = SendLoginPinSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        phone_number = serializer.validated_data["phone_number"].strip()
+        try:
+            user = User.objects.get(phone_number=phone_number)
+        except User.DoesNotExist:
+            return Response({"error": "No account found with this phone number"}, status=status.HTTP_404_NOT_FOUND)
+
+        LoginOTP.objects.filter(user=user, is_used=False).update(is_used=True)
+
+        code = f"{random.randint(0, 999999):06d}"
+        LoginOTP.objects.create(user=user, code=code)
+
+        message = f"Your MaidMatch login code is {code}. It will expire in 5 minutes."
+        send_whatsapp_message(phone_number, message)
+
+        return Response({"message": "Login code sent via WhatsApp"}, status=status.HTTP_200_OK)
+
+
 class UserLoginView(APIView):
     """
     API endpoint for user login
@@ -89,41 +146,65 @@ class UserLoginView(APIView):
     permission_classes = [permissions.AllowAny]
     
     def post(self, request):
-        serializer = LoginSerializer(data=request.data)
-        if serializer.is_valid():
-            phone_number = serializer.validated_data['phone_number']
-            password = serializer.validated_data['password']
-            
-            # Authenticate using phone_number
-            user = authenticate(request, username=phone_number, password=password)
-            
-            if user is not None:
-                # Block login if homeowner account is deactivated or maid account is disabled
-                try:
-                    if user.user_type == 'homeowner' and hasattr(user, 'homeowner_profile'):
-                        if not user.homeowner_profile.is_active:
-                            return Response({
-                                'error': 'Your account is blocked. Please contact the MaidMatch team for support.'
-                            }, status=status.HTTP_403_FORBIDDEN)
-                    if user.user_type == 'maid' and hasattr(user, 'maid_profile'):
-                        if not user.maid_profile.is_enabled:
-                            return Response({
-                                'error': 'Your account is blocked. Please contact the MaidMatch team for support.'
-                            }, status=status.HTTP_403_FORBIDDEN)
-                except Exception:
-                    # If any unexpected error occurs, continue to avoid masking login entirely
-                    pass
-                login(request, user)
-                return Response({
-                    'message': 'Login successful',
-                    'user': UserSerializer(user).data
-                }, status=status.HTTP_200_OK)
-            else:
-                return Response({
-                    'error': 'Invalid credentials'
-                }, status=status.HTTP_401_UNAUTHORIZED)
-        
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        serializer = VerifyLoginPinSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        phone_number = serializer.validated_data["phone_number"].strip()
+        pin = serializer.validated_data["pin"]
+
+        try:
+            user = User.objects.get(phone_number=phone_number)
+        except User.DoesNotExist:
+            return Response({"error": "Invalid code or phone number"}, status=status.HTTP_401_UNAUTHORIZED)
+        # Temporary static codes while WhatsApp API integration is being finalized.
+        # For development convenience, allow any existing user to log in with one of the
+        # fixed codes below. The existing OTP logic remains as a fallback.
+        static_pins = {"1111", "2222", "3333", "4444"}
+
+        if pin in static_pins:
+            login(request, user, backend='accounts.backends.PhoneNumberBackend')
+            return Response({
+                "message": "Login successful",
+                "user": UserSerializer(user).data
+            }, status=status.HTTP_200_OK)
+
+        otp = (
+            LoginOTP.objects.filter(user=user, code=pin, is_used=False)
+            .order_by("-created_at")
+            .first()
+        )
+
+        if otp is None:
+            return Response({"error": "Invalid code or phone number"}, status=status.HTTP_401_UNAUTHORIZED)
+
+        if timezone.now() - otp.created_at > timedelta(minutes=5):
+            otp.is_used = True
+            otp.save(update_fields=["is_used"])
+            return Response({"error": "Code has expired. Please request a new one."}, status=status.HTTP_400_BAD_REQUEST)
+
+        otp.is_used = True
+        otp.save(update_fields=["is_used"])
+
+        try:
+            if user.user_type == 'homeowner' and hasattr(user, 'homeowner_profile'):
+                if not user.homeowner_profile.is_active:
+                    return Response({
+                        'error': 'Your account is blocked. Please contact the MaidMatch team for support.'
+                    }, status=status.HTTP_403_FORBIDDEN)
+            if user.user_type == 'maid' and hasattr(user, 'maid_profile'):
+                if not user.maid_profile.is_enabled:
+                    return Response({
+                        'error': 'Your account is blocked. Please contact the MaidMatch team for support.'
+                    }, status=status.HTTP_403_FORBIDDEN)
+        except Exception:
+            pass
+
+        login(request, user, backend='accounts.backends.PhoneNumberBackend')
+        return Response({
+            'message': 'Login successful',
+            'user': UserSerializer(user).data
+        }, status=status.HTTP_200_OK)
 
 
 class UserLogoutView(APIView):

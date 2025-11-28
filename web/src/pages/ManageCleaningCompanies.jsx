@@ -20,6 +20,9 @@ const ManageCleaningCompanies = () => {
   // selection
   const [selected, setSelected] = useState([]);
 
+  // detail modal
+  const [selectedCompany, setSelectedCompany] = useState(null);
+
   // debounce search input
   const debouncedParams = useMemo(() => ({ q, verified, active, page }), [q, verified, active, page]);
 
@@ -48,6 +51,23 @@ const ManageCleaningCompanies = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Helper: parse service_pricing into a map of service -> starting fee
+  const parseServiceRates = (service_pricing) => {
+    if (!service_pricing) return {};
+    const raw = String(service_pricing || '');
+    const lines = raw.split('\n').map((l) => l.trim()).filter((l) => l.length > 0);
+    const map = {};
+    lines.forEach((line) => {
+      const idx = line.indexOf(':');
+      if (idx !== -1) {
+        const name = line.slice(0, idx).trim();
+        const value = line.slice(idx + 1).trim();
+        if (name) map[name] = value;
+      }
+    });
+    return map;
   };
 
   useEffect(() => {
@@ -84,6 +104,61 @@ const ManageCleaningCompanies = () => {
             <RefreshCcw className="w-4 h-4 mr-1"/>Refresh
           </button>
         </div>
+
+      {/* Company Details Modal */}
+      {selectedCompany && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-xl w-full max-h-[90vh] overflow-y-auto shadow-lg">
+            <div className="border-b px-5 py-4 flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-gray-900">Company Details</h2>
+              <button
+                type="button"
+                className="text-gray-500 hover:text-gray-700 text-sm"
+                onClick={() => setSelectedCompany(null)}
+              >
+                Close
+              </button>
+            </div>
+            <div className="px-5 py-4 space-y-4">
+              <div>
+                <h3 className="text-xl font-bold text-gray-900">{selectedCompany.company_name}</h3>
+                <p className="text-sm text-gray-600">{selectedCompany.location || 'Location not set'}</p>
+                <div className="mt-2 flex flex-wrap gap-2 text-xs">
+                  <span className={`px-2 py-0.5 rounded-full ${selectedCompany.verified ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                    {selectedCompany.verified ? 'Verified' : 'Not Verified'}
+                  </span>
+                  <span className={`px-2 py-0.5 rounded-full ${selectedCompany.user_active ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'}`}>
+                    {selectedCompany.user_active ? 'Active' : 'Disabled'}
+                  </span>
+                </div>
+              </div>
+
+              <div>
+                <h4 className="font-semibold text-gray-900 mb-2">Services Offered</h4>
+                {Array.isArray(selectedCompany.services) && selectedCompany.services.length > 0 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {selectedCompany.services.map((svc) => {
+                      const rates = parseServiceRates(selectedCompany.service_pricing);
+                      const rate = rates[svc.name];
+                      return (
+                        <span
+                          key={svc.id}
+                          className="px-3 py-1 bg-gray-100 text-gray-800 rounded-full text-sm"
+                        >
+                          {svc.name}
+                          {rate ? ` (Starting Service fee: ${rate})` : ''}
+                        </span>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-600">No services listed.</p>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       </div>
 
       {error && <div className="mb-4 p-3 rounded border border-red-300 bg-red-50 text-red-700 text-sm">{error}</div>}
@@ -135,13 +210,14 @@ const ManageCleaningCompanies = () => {
               <th className="text-left p-3">Location</th>
               <th className="text-left p-3">Verified</th>
               <th className="text-left p-3">Status</th>
+              <th className="text-left p-3">Actions</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td className="p-4" colSpan={6}>Loading...</td></tr>
+              <tr><td className="p-4" colSpan={7}>Loading...</td></tr>
             ) : items.length === 0 ? (
-              <tr><td className="p-4" colSpan={6}>No companies found.</td></tr>
+              <tr><td className="p-4" colSpan={7}>No companies found.</td></tr>
             ) : (
               items.map((c) => (
                 <tr key={c.id} className="border-t">
@@ -151,6 +227,15 @@ const ManageCleaningCompanies = () => {
                   <td className="p-3">{c.location}</td>
                   <td className="p-3">{c.verified ? 'Yes' : 'No'}</td>
                   <td className="p-3">{c.user_active ? 'Active' : 'Disabled'}</td>
+                  <td className="p-3">
+                    <button
+                      type="button"
+                      className="text-primary-600 hover:underline text-sm"
+                      onClick={() => setSelectedCompany(c)}
+                    >
+                      View Details
+                    </button>
+                  </td>
                 </tr>
               ))
             )}

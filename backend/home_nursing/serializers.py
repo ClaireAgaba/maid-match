@@ -17,6 +17,7 @@ class HomeNurseCreateSerializer(serializers.ModelSerializer):
         model = HomeNurse
         fields = [
             "nursing_level",
+            "gender",
             "council_registration_number",
             "years_of_experience",
             "services",
@@ -25,6 +26,7 @@ class HomeNurseCreateSerializer(serializers.ModelSerializer):
             "location",
             "date_of_birth",
             "display_photo",
+            "service_pricing",
         ]
 
     def validate_services(self, value):
@@ -62,6 +64,7 @@ class HomeNurseMinimalSerializer(serializers.ModelSerializer):
             "username",
             "user_id",
             "nursing_level",
+            "gender",
             "council_registration_number",
             "date_of_birth",
             "age",
@@ -74,6 +77,7 @@ class HomeNurseMinimalSerializer(serializers.ModelSerializer):
             "location",
             "services",
             "display_photo",
+            "service_pricing",
             "created_at",
             "updated_at",
         ]
@@ -98,6 +102,7 @@ class HomeNurseUpdateSerializer(serializers.ModelSerializer):
         model = HomeNurse
         fields = [
             "nursing_level",
+            "gender",
             "council_registration_number",
             "date_of_birth",
             "years_of_experience",
@@ -106,6 +111,7 @@ class HomeNurseUpdateSerializer(serializers.ModelSerializer):
             "emergency_availability",
             "location",
             "display_photo",
+            "service_pricing",
         ]
 
     def update(self, instance, validated_data):
@@ -133,11 +139,13 @@ class AdminHomeNurseSerializer(serializers.ModelSerializer):
             "user_active",
             "is_verified",
             "nursing_level",
+            "gender",
             "location",
             "date_of_birth",
             "age",
             "years_of_experience",
             "services",
+            "service_pricing",
             "created_at",
             "updated_at",
         ]

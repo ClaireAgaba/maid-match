@@ -1,4 +1,4 @@
-from rest_framework import viewsets, status, permissions, filters
+from rest_framework import viewsets, permissions, status, filters, exceptions
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
@@ -244,10 +244,9 @@ class JobViewSet(viewsets.ModelViewSet):
 
 
 class JobApplicationViewSet(viewsets.ModelViewSet):
-    """
-    ViewSet for JobApplication CRUD operations
-    """
-    queryset = JobApplication.objects.select_related('job', 'maid').all()
+    """ViewSet for JobApplication CRUD operations."""
+
+    queryset = JobApplication.objects.select_related('job', 'maid', 'cleaning_company', 'nurse').all()
     permission_classes = [permissions.IsAuthenticated]
     filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
     filterset_fields = ['status']
@@ -264,7 +263,15 @@ class JobApplicationViewSet(viewsets.ModelViewSet):
         # Maids see their own applications
         if hasattr(user, 'maid_profile'):
             return self.queryset.filter(maid=user.maid_profile)
-        
+
+        # Cleaning companies see their own applications
+        if hasattr(user, 'cleaning_company'):
+            return self.queryset.filter(cleaning_company=user.cleaning_company)
+
+        # Home nurses see their own applications
+        if hasattr(user, 'home_nurse'):
+            return self.queryset.filter(nurse=user.home_nurse)
+
         # Homeowners see applications for their jobs
         if hasattr(user, 'homeowner_profile'):
             return self.queryset.filter(job__homeowner=user.homeowner_profile)
@@ -272,8 +279,23 @@ class JobApplicationViewSet(viewsets.ModelViewSet):
         return self.queryset.none()
     
     def perform_create(self, serializer):
-        # Automatically set the maid to the current user's profile
-        serializer.save(maid=self.request.user.maid_profile)
+        """Create a job application for the current provider user.
+
+        A provider can be a maid, cleaning company, or home nurse. Exactly one
+        of these profile types will be attached to the application based on the
+        logged-in user.
+        """
+        user = self.request.user
+        if hasattr(user, 'maid_profile'):
+            serializer.save(maid=user.maid_profile)
+            return
+        if hasattr(user, 'cleaning_company'):
+            serializer.save(cleaning_company=user.cleaning_company)
+            return
+        if hasattr(user, 'home_nurse'):
+            serializer.save(nurse=user.home_nurse)
+            return
+        raise exceptions.ValidationError('Only maids, cleaning companies, or home nurses can apply to jobs.')
     
     @action(detail=True, methods=['post'])
     def accept(self, request, pk=None):
@@ -291,10 +313,11 @@ class JobApplicationViewSet(viewsets.ModelViewSet):
         application.status = 'accepted'
         application.save()
         
-        # Assign the maid to the job
-        application.job.assigned_maid = application.maid
-        application.job.status = 'assigned'
-        application.job.save()
+        # Assign the maid to the job when applicable
+        if application.maid is not None:
+            application.job.assigned_maid = application.maid
+            application.job.status = 'assigned'
+            application.job.save()
         
         # Reject other applications for this job
         JobApplication.objects.filter(job=application.job).exclude(id=application.id).update(status='rejected')

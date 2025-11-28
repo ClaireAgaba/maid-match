@@ -42,3 +42,19 @@ class User(AbstractUser):
     
     def __str__(self):
         return f"{self.username} ({self.user_type})"
+
+
+class LoginOTP(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='login_otps')
+    code = models.CharField(max_length=6)
+    created_at = models.DateTimeField(auto_now_add=True)
+    is_used = models.BooleanField(default=False)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['user', 'code', 'created_at']),
+        ]
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"OTP for {self.user_id} at {self.created_at}"

@@ -25,6 +25,23 @@ const FindMaids = () => {
   const [loadingReviews, setLoadingReviews] = useState(false);
   const [submittingClose, setSubmittingClose] = useState(false);
 
+  // Helper: parse service_pricing (one "Service: value" per line) into a map
+  const parseServiceRates = (service_pricing) => {
+    if (!service_pricing) return {};
+    const raw = String(service_pricing || '');
+    const lines = raw.split('\n').map((l) => l.trim()).filter((l) => l.length > 0);
+    const map = {};
+    lines.forEach((line) => {
+      const idx = line.indexOf(':');
+      if (idx !== -1) {
+        const name = line.slice(0, idx).trim();
+        const value = line.slice(idx + 1).trim();
+        if (name) map[name] = value;
+      }
+    });
+    return map;
+  };
+
   const getMediaUrl = (url) => {
     if (!url) return null;
     // If already absolute, return as is
@@ -187,11 +204,29 @@ const FindMaids = () => {
 
                 {/* Body */}
                 <div className="space-y-2 mb-4 text-sm text-gray-700">
-                  {m.skills && <p><span className="font-medium">Skills:</span> {m.skills}</p>}
+                  {m.skills && (
+                    <p>
+                      <span className="font-medium">Services Offered:</span>{' '}
+                      {m.skills
+                        .split(',')
+                        .map((s) => s.trim())
+                        .filter((s) => s.length > 0)
+                        .map((service, index, arr) => {
+                          const rates = parseServiceRates(m.service_pricing);
+                          const rate = rates[service];
+                          return (
+                            <span key={service}>
+                              {service}
+                              {rate ? ` (Starting Service fee: ${rate})` : ''}
+                              {index < arr.length - 1 ? ', ' : ''}
+                            </span>
+                          );
+                        })}
+                    </p>
+                  )}
                   <div className="flex items-center gap-4">
                     <span className="inline-flex items-center gap-1"><Star className="h-4 w-4 text-yellow-500" /> {Number(m.rating || 0).toFixed(1)}</span>
                     {m.experience_years ? <span>{m.experience_years} yrs exp</span> : null}
-                    {m.hourly_rate ? <span>Starting Pay: UGX {m.hourly_rate}</span> : null}
                   </div>
                 </div>
 
@@ -242,9 +277,6 @@ const FindMaids = () => {
                   <p className="font-medium">{selected.experience_years || 0} years</p>
                 </div>
                 <div>
-                  <p className="font-medium">{selected.hourly_rate ? `UGX ${selected.hourly_rate}` : 'Not set'}</p>
-                </div>
-                <div>
                   <p className="text-gray-600">Rating</p>
                   <p className="font-medium flex items-center gap-2">
                     <span className="inline-flex items-center gap-1"><Star className="h-4 w-4 text-yellow-500" />{Number(selected.rating || 0).toFixed(1)}</span>
@@ -277,8 +309,24 @@ const FindMaids = () => {
                 </div>
                 {selected.skills && (
                   <div className="col-span-2">
-                    <p className="text-gray-600">Skills</p>
-                    <p className="font-medium">{selected.skills}</p>
+                    <p className="text-gray-600">Services Offered</p>
+                    <p className="font-medium">
+                      {selected.skills
+                        .split(',')
+                        .map((s) => s.trim())
+                        .filter((s) => s.length > 0)
+                        .map((service, index, arr) => {
+                          const rates = parseServiceRates(selected.service_pricing);
+                          const rate = rates[service];
+                          return (
+                            <span key={service}>
+                              {service}
+                              {rate ? ` (Starting Service fee: ${rate})` : ''}
+                              {index < arr.length - 1 ? ', ' : ''}
+                            </span>
+                          );
+                        })}
+                    </p>
                   </div>
                 )}
                 {selected.category && (

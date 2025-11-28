@@ -19,6 +19,7 @@ class CleaningCompanyCreateSerializer(serializers.ModelSerializer):
             "services",
             "location",
             "display_photo",
+            "service_pricing",
         ]
 
     def validate_services(self, value):
@@ -72,6 +73,7 @@ class CleaningCompanyMinimalSerializer(serializers.ModelSerializer):
             "location",
             "verified",
             "services",
+            "service_pricing",
             "display_photo_url",
             "username",
             "user_id",
@@ -113,7 +115,7 @@ class CleaningCompanyUpdateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = CleaningCompany
-        fields = ["company_name", "location", "services", "display_photo"]
+        fields = ["company_name", "location", "services", "display_photo", "service_pricing"]
 
     def update(self, instance, validated_data):
         services = validated_data.pop("services", None)

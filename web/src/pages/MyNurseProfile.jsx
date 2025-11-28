@@ -76,7 +76,20 @@ const MyNurseProfile = () => {
               )}
             </div>
             <div className="flex-1">
-              <h2 className="text-xl font-bold text-gray-900">{profile.username}</h2>
+              <h2 className="text-xl font-bold text-gray-900">
+                {profile.username}
+                {(typeof profile.age === 'number' || profile.gender) && (
+                  <span className="ml-2 text-sm font-normal text-gray-600">
+                    {typeof profile.age === 'number' && `Age: ${profile.age} yrs`}
+                    {profile.gender && (
+                      <>
+                        {typeof profile.age === 'number' ? ' • ' : ''}
+                        {profile.gender.charAt(0).toUpperCase() + profile.gender.slice(1)}
+                      </>
+                    )}
+                  </span>
+                )}
+              </h2>
               <p className="text-gray-600 flex items-center"><MapPin className="h-4 w-4 mr-1"/>{profile.location || 'Location not set'}</p>
             </div>
             <div className="text-right">
@@ -91,6 +104,7 @@ const MyNurseProfile = () => {
           <Row label="Nursing level" value={profile.nursing_level} />
           <Row label="Council registration number" value={profile.council_registration_number} />
           <Row label="Years of experience" value={profile.years_of_experience?.toString()} />
+          <Row label="Gender" value={profile.gender && (profile.gender.charAt(0).toUpperCase() + profile.gender.slice(1))} />
           <Row label="Preferred working hours" value={profile.preferred_working_hours} />
           <Row label="Emergency availability" value={profile.emergency_availability ? 'Yes' : 'No'} />
           <Row label="Location" value={profile.location} />

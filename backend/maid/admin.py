@@ -1,7 +1,14 @@
 from django.contrib import admin
-from .models import MaidProfile, MaidAvailability
+from .models import MaidProfile, MaidAvailability, MaidServiceCategory
 
 # Register your models here.
+
+@admin.register(MaidServiceCategory)
+class MaidServiceCategoryAdmin(admin.ModelAdmin):
+    list_display = ("name", "group")
+    list_filter = ("group",)
+    search_fields = ("name",)
+
 
 @admin.register(MaidProfile)
 class MaidProfileAdmin(admin.ModelAdmin):

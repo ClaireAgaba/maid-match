@@ -18,6 +18,30 @@ const FindHomeNurses = () => {
   const [rateReliability, setRateReliability] = useState(0);
   const [submittingRate, setSubmittingRate] = useState(false);
 
+  // Helper: parse service_pricing (one "Category: value" per line) into a map
+  const parseServiceRates = (service_pricing) => {
+    if (!service_pricing) return {};
+    const raw = String(service_pricing || '');
+    const lines = raw.split('\n').map((l) => l.trim()).filter((l) => l.length > 0);
+    const map = {};
+    lines.forEach((line) => {
+      const idx = line.indexOf(':');
+      if (idx !== -1) {
+        const name = line.slice(0, idx).trim();
+        const value = line.slice(idx + 1).trim();
+        if (name) map[name] = value;
+      }
+    });
+    return map;
+  };
+
+  const getMediaUrl = (url) => {
+    if (!url) return null;
+    if (/^https?:\/\//i.test(url)) return url;
+    const origin = 'http://localhost:8000';
+    return `${origin}${url.startsWith('/') ? url : `/${url}`}`;
+  };
+
   useEffect(() => {
     (async () => {
       try {
@@ -95,19 +119,43 @@ const FindHomeNurses = () => {
               <div key={n.id} className="card hover:shadow-lg transition-shadow cursor-pointer" onClick={() => { setSelected(n); setShowContact(false); setShowRate(false); }}>
                 <div className="flex items-start gap-4">
                   <div className="h-16 w-16 rounded-full overflow-hidden border-2 border-gray-200 flex items-center justify-center bg-gradient-to-br from-pink-400 to-purple-600">
-                    <Stethoscope className="h-8 w-8 text-white" />
+                    {n.display_photo ? (
+                      <img
+                        src={getMediaUrl(n.display_photo)}
+                        alt={n.username}
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <Stethoscope className="h-8 w-8 text-white" />
+                    )}
                   </div>
                   <div className="flex-1">
                     <h3 className="text-lg font-semibold text-gray-900">{n.username}</h3>
                     <p className="text-sm text-gray-600 flex items-center"><MapPin className="h-3 w-3 mr-1" />{n.location || 'Location not set'}</p>
+                    <p className="text-xs text-gray-600 mt-1">
+                      {typeof n.age === 'number' && <>Age: {n.age} yrs</>}
+                      {n.gender && (
+                        <>
+                          {typeof n.age === 'number' ? ' • ' : ''}
+                          {n.gender.charAt(0).toUpperCase() + n.gender.slice(1)}
+                        </>
+                      )}
+                    </p>
                     <div className="mt-2 flex flex-wrap gap-2">
                       <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 inline-flex items-center gap-1"><ShieldCheck className="h-3 w-3" /> Verified</span>
                       {n.nursing_level && (
                         <span className="px-2 py-0.5 rounded-full bg-gray-100 text-gray-800 text-xs">Level: {n.nursing_level}</span>
                       )}
-                      {Array.isArray(n.services) && n.services.slice(0, 3).map(s => (
-                        <span key={s.id} className="px-2 py-0.5 rounded-full bg-gray-100 text-gray-800 text-xs">{s.name}</span>
-                      ))}
+                      {Array.isArray(n.services) && n.services.slice(0, 3).map(s => {
+                        const rates = parseServiceRates(n.service_pricing);
+                        const rate = rates[s.name];
+                        return (
+                          <span key={s.id} className="px-2 py-0.5 rounded-full bg-gray-100 text-gray-800 text-xs">
+                            {s.name}
+                            {rate ? ` (Starting Service fee: ${rate})` : ''}
+                          </span>
+                        );
+                      })}
                       {Array.isArray(n.services) && n.services.length > 3 && (
                         <span className="text-xs text-gray-600">+{n.services.length - 3} more</span>
                       )}
@@ -130,27 +178,62 @@ const FindHomeNurses = () => {
             <div className="p-4 sm:p-6 space-y-4">
               <div className="flex items-center gap-4">
                 <div className="h-20 w-20 rounded-full overflow-hidden border-4 border-gray-200 flex items-center justify-center bg-gradient-to-br from-pink-400 to-purple-600">
-                  <Stethoscope className="h-10 w-10 text-white" />
+                  {selected.display_photo ? (
+                    <img
+                      src={getMediaUrl(selected.display_photo)}
+                      alt={selected.username}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <Stethoscope className="h-10 w-10 text-white" />
+                  )}
                 </div>
                 <div>
                   <h3 className="text-2xl font-bold text-gray-900">{selected.username}</h3>
                   <p className="text-gray-600 flex items-center"><MapPin className="h-4 w-4 mr-1" />{selected.location || 'Location not set'}</p>
+                  <div className="mt-1 text-sm text-gray-700 flex flex-wrap gap-2">
+                    {typeof selected.age === 'number' && <span>Age: {selected.age} yrs</span>}
+                    {selected.gender && (
+                      <span>
+                        {selected.gender.charAt(0).toUpperCase() + selected.gender.slice(1)}
+                      </span>
+                    )}
+                    {selected.years_of_experience > 0 && <span>Experience: {selected.years_of_experience} yrs</span>}
+                  </div>
                   <div className="mt-2 flex items-center gap-2">
                     <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 inline-flex items-center gap-1"><ShieldCheck className="h-3 w-3" /> Verified</span>
                     {selected.nursing_level && (
                       <span className="px-2 py-0.5 rounded-full bg-gray-100 text-gray-800 text-xs">Level: {selected.nursing_level}</span>
                     )}
+                    {selected.emergency_availability && (
+                      <span className="px-2 py-0.5 rounded-full bg-red-100 text-red-800 text-xs">Emergency available</span>
+                    )}
                   </div>
                 </div>
               </div>
+
+              {(selected.preferred_working_hours || selected.emergency_availability) && (
+                <div className="text-sm text-gray-700">
+                  {selected.preferred_working_hours && (
+                    <p><span className="font-medium">Preferred hours:</span> {selected.preferred_working_hours}</p>
+                  )}
+                </div>
+              )}
 
               {Array.isArray(selected.services) && selected.services.length > 0 && (
                 <div>
                   <p className="text-gray-900 font-medium mb-1">Services</p>
                   <div className="flex flex-wrap gap-2">
-                    {selected.services.map((s) => (
-                      <span key={s.id} className="px-3 py-1 bg-gray-100 text-gray-800 rounded-full text-sm">{s.name}</span>
-                    ))}
+                    {selected.services.map((s) => {
+                      const rates = parseServiceRates(selected.service_pricing);
+                      const rate = rates[s.name];
+                      return (
+                        <span key={s.id} className="px-3 py-1 bg-gray-100 text-gray-800 rounded-full text-sm">
+                          {s.name}
+                          {rate ? ` (Starting Service fee: ${rate})` : ''}
+                        </span>
+                      );
+                    })}
                   </div>
                 </div>
               )}

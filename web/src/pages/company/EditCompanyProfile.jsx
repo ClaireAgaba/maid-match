@@ -7,12 +7,27 @@ const EditCompanyProfile = () => {
   const [profile, setProfile] = useState(null);
   const [cats, setCats] = useState(null);
   const [saving, setSaving] = useState(false);
+  // Local map of per-service starting pay, keyed by service name
+  const [serviceRates, setServiceRates] = useState({});
 
   useEffect(() => {
     const load = async () => {
       try {
         const me = await cleaningCompanyAPI.me();
         setProfile(me.data);
+        // Parse existing service_pricing into the local map
+        const raw = String(me.data?.service_pricing || '');
+        const lines = raw.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+        const map = {};
+        lines.forEach(line => {
+          const idx = line.indexOf(':');
+          if (idx !== -1) {
+            const name = line.slice(0, idx).trim();
+            const value = line.slice(idx + 1).trim();
+            if (name) map[name] = value;
+          }
+        });
+        setServiceRates(map);
       } catch {}
       try {
         const cg = await cleaningCompanyAPI.categoriesGrouped();
@@ -30,6 +45,27 @@ const EditCompanyProfile = () => {
     const services = Array.from(form.querySelectorAll('input[name="svc"]:checked')).map(el => Number(el.value));
     const payload = { company_name, location };
     if (services.length > 0) payload.services = services;
+
+    // Build service_pricing from selected services and serviceRates
+    if (cats && services.length > 0) {
+      const idToName = {};
+      Object.values(cats).forEach(items => {
+        items.forEach(it => {
+          idToName[it.id] = it.name;
+        });
+      });
+      const lines = [];
+      services.forEach((id) => {
+        const name = idToName[id];
+        const rate = name ? serviceRates[name] : null;
+        if (name && rate && rate.trim().length > 0) {
+          lines.push(`${name}: ${rate.trim()}`);
+        }
+      });
+      if (lines.length > 0) {
+        payload.service_pricing = lines.join('\n');
+      }
+    }
     setSaving(true);
     try {
       await authAPI.getCsrfToken();
@@ -74,14 +110,26 @@ const EditCompanyProfile = () => {
             Object.entries(cats).map(([groupLabel, items]) => (
               <div key={groupLabel} className="mb-3">
                 <div className="font-semibold text-sm mb-1">{groupLabel}</div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {items.map((item) => {
                     const checked = Array.isArray(profile.services) && profile.services.find(s => s.id === item.id);
                     return (
-                      <label key={item.id} className="flex items-center gap-2">
-                        <input type="checkbox" name="svc" value={item.id} defaultChecked={!!checked} />
-                        <span className="text-sm">{item.name}</span>
-                      </label>
+                      <div key={item.id} className="flex flex-col gap-1">
+                        <label className="flex items-center gap-2">
+                          <input type="checkbox" name="svc" value={item.id} defaultChecked={!!checked} />
+                          <span className="text-sm">{item.name}</span>
+                        </label>
+                        <input
+                          type="text"
+                          className="input-field text-xs"
+                          placeholder="Starting pay for this service (optional)"
+                          defaultValue={serviceRates[item.name] || ''}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            setServiceRates((prev) => ({ ...prev, [item.name]: value }));
+                          }}
+                        />
+                      </div>
                     );
                   })}
                 </div>

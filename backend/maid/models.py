@@ -3,6 +3,47 @@ from django.conf import settings
 
 # Create your models here.
 
+class MaidServiceCategory(models.Model):
+    """Taxonomy for maid / domestic service offerings."""
+    GROUP_DOMESTIC = "domestic_housekeeping"
+    GROUP_NANNY = "nanny_childcare"
+    GROUP_ELDERLY = "elderly_support"
+    GROUP_RESIDENTIAL = "residential_cleaning"
+    GROUP_LIVE_IN = "live_in_maid"
+    GROUP_LIVE_OUT = "live_out_maid"
+    GROUP_COOKING = "cooking_meals"
+    GROUP_LAUNDRY = "laundry_ironing"
+    GROUP_PLACEMENT = "placement_recruitment"
+    GROUP_ASSISTANT = "home_assistant"
+    GROUP_AFTER_PARTY = "after_party_cleaning"
+    GROUP_EVENT_HELPERS = "event_helpers"
+
+    GROUP_CHOICES = (
+        (GROUP_DOMESTIC, "Domestic Housekeeping Services"),
+        (GROUP_NANNY, "Nanny / Childcare Services"),
+        (GROUP_ELDERLY, "Home Care & Elderly Support"),
+        (GROUP_RESIDENTIAL, "Residential Cleaning Services"),
+        (GROUP_LIVE_IN, "Live-in Maid Services"),
+        (GROUP_LIVE_OUT, "Live-out Maid Services"),
+        (GROUP_COOKING, "Cooking & Meal Preparation"),
+        (GROUP_LAUNDRY, "Laundry & Ironing Services"),
+        (GROUP_PLACEMENT, "Domestic Staff Placement / Recruitment"),
+        (GROUP_ASSISTANT, "Home Assistant Services"),
+        (GROUP_AFTER_PARTY, "After-Party & Event Cleaning Services"),
+        (GROUP_EVENT_HELPERS, "Cooking, Serving & Event Helpers"),
+    )
+
+    name = models.CharField(max_length=120, unique=True)
+    group = models.CharField(max_length=40, choices=GROUP_CHOICES)
+
+    class Meta:
+        verbose_name = "Maid Service Category"
+        verbose_name_plural = "Maid Service Categories"
+
+    def __str__(self) -> str:
+        return f"{self.name} ({self.get_group_display()})"
+
+
 class MaidProfile(models.Model):
     """
     Extended profile for Maid users with comprehensive biodata
@@ -24,11 +65,13 @@ class MaidProfile(models.Model):
     experience_years = models.IntegerField(default=0)
     hourly_rate = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     CATEGORY_CHOICES = (
-        ('temporary', 'Temporary'),  # come work and go
-        ('live_in', 'Live-in'),      # moves in with the homeowner
+        ('temporary', 'Temporary'),              # come work and go
+        ('live_in', 'Live-in'),                  # moves in with the homeowner
+        ('placement', 'Domestic Staff Placement')
     )
     category = models.CharField(max_length=20, choices=CATEGORY_CHOICES, null=True, blank=True)
     skills = models.TextField(help_text="Comma-separated skills", blank=True, null=True)
+    service_pricing = models.TextField(blank=True, null=True, help_text="Per-service starting pay in free text (one per line)")
     availability_status = models.BooleanField(default=True)
     rating = models.DecimalField(max_digits=3, decimal_places=2, default=0.00)
     total_jobs_completed = models.IntegerField(default=0)

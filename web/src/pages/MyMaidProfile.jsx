@@ -131,6 +131,7 @@ const MyMaidProfile = () => {
           <Row label="Experience (years)" value={profile.experience_years} visibleToHomeowners />
           <Row label="Hourly rate" value={profile.hourly_rate ? `UGX ${profile.hourly_rate}` : ''} visibleToHomeowners />
           <Row label="Maid category" value={profile.category ? (profile.category === 'live_in' ? 'Live-in' : 'Temporary') : ''} visibleToHomeowners />
+          <Row label="Service starting pay" value={profile.service_pricing} visibleToHomeowners />
           <Row label="Skills" value={profile.skills} visibleToHomeowners />
           <Row label="Bio" value={profile.bio} visibleToHomeowners />
         </div>

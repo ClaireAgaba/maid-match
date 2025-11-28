@@ -42,7 +42,13 @@ class HomeNurse(models.Model):
     )
 
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="home_nurse")
+    GENDER_CHOICES = (
+        ("female", "Female"),
+        ("male", "Male"),
+        ("other", "Other"),
+    )
     nursing_level = models.CharField(max_length=20, choices=NURSING_LEVEL_CHOICES)
+    gender = models.CharField(max_length=10, choices=GENDER_CHOICES, blank=True, null=True)
     council_registration_number = models.CharField(max_length=100, blank=True, null=True)
     years_of_experience = models.PositiveIntegerField(default=0)
     services = models.ManyToManyField(NursingServiceCategory, related_name="nurses", blank=True)
@@ -52,6 +58,7 @@ class HomeNurse(models.Model):
     emergency_availability = models.BooleanField(default=False)
     is_verified = models.BooleanField(default=False)
     location = models.CharField(max_length=255, blank=True)
+    service_pricing = models.TextField(blank=True, null=True, help_text="Per-category starting pay in free text (one per line)")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

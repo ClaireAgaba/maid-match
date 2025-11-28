@@ -36,6 +36,7 @@ class CleaningCompany(models.Model):
     location = models.CharField(max_length=255)
     display_photo = models.ImageField(upload_to="company_photos/", blank=True, null=True)
     verified = models.BooleanField(default=False)
+    service_pricing = models.TextField(blank=True, null=True, help_text="Per-service starting pay in free text (one per line)")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

@@ -80,32 +80,40 @@ class Job(models.Model):
 
 
 class JobApplication(models.Model):
+    """Applications to homeowner jobs.
+
+    Originally this model only supported maids via the ``maid`` foreign key.
+    It has been extended to also support cleaning companies and home nurses so
+    that any of these provider types can show interest in a job.
+    Exactly one of ``maid``, ``cleaning_company`` or ``nurse`` should be set
+    for a given application.
     """
-    Maids apply to jobs through this model
-    """
+
     STATUS_CHOICES = (
         ('pending', 'Pending'),
         ('accepted', 'Accepted'),
         ('rejected', 'Rejected'),
     )
-    
+
     job = models.ForeignKey(Job, on_delete=models.CASCADE, related_name='applications')
-    maid = models.ForeignKey('maid.MaidProfile', on_delete=models.CASCADE, related_name='job_applications')
+    maid = models.ForeignKey('maid.MaidProfile', on_delete=models.CASCADE, null=True, blank=True, related_name='job_applications')
+    cleaning_company = models.ForeignKey('cleaning_company.CleaningCompany', on_delete=models.CASCADE, null=True, blank=True, related_name='job_applications')
+    nurse = models.ForeignKey('home_nursing.HomeNurse', on_delete=models.CASCADE, null=True, blank=True, related_name='job_applications')
     cover_letter = models.TextField(blank=True, null=True)
     proposed_rate = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
-    
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    
+
     class Meta:
         db_table = 'job_applications'
         verbose_name = 'Job Application'
         verbose_name_plural = 'Job Applications'
-        unique_together = ['job', 'maid']
-    
+
     def __str__(self):
-        return f"{self.maid.user.username} -> {self.job.title}"
+        actor = self.maid or self.cleaning_company or self.nurse
+        return f"{getattr(actor, 'user', actor)} -> {self.job.title}"
 
 
 class Review(models.Model):

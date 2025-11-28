@@ -68,7 +68,10 @@ api.interceptors.response.use(
 export const authAPI = {
   getCsrfToken: () => api.get('/accounts/csrf/'),
   register: (userData) => api.post('/accounts/register/', userData),
+  // Legacy password login endpoint (no longer used for WhatsApp OTP)
   login: (credentials) => api.post('/accounts/login/', credentials),
+  sendLoginPin: (payload) => api.post('/accounts/login/send-pin/', payload),
+  verifyLoginPin: (payload) => api.post('/accounts/login/verify-pin/', payload),
   logout: () => api.post('/accounts/logout/'),
   getCurrentUser: () => api.get('/accounts/users/me/'),
   updateUser: (data) => api.patch('/accounts/users/me/', data),

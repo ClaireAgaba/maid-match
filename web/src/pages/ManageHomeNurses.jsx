@@ -17,6 +17,23 @@ const ManageHomeNurses = () => {
   const [selected, setSelected] = useState(null);
   const [acting, setActing] = useState(false);
 
+  // Helper: parse service_pricing (one "Category: value" per line) into a map
+  const parseServiceRates = (service_pricing) => {
+    if (!service_pricing) return {};
+    const raw = String(service_pricing || '');
+    const lines = raw.split('\n').map((l) => l.trim()).filter((l) => l.length > 0);
+    const map = {};
+    lines.forEach((line) => {
+      const idx = line.indexOf(':');
+      if (idx !== -1) {
+        const name = line.slice(0, idx).trim();
+        const value = line.slice(idx + 1).trim();
+        if (name) map[name] = value;
+      }
+    });
+    return map;
+  };
+
   useEffect(() => {
     if (!isAdmin) { navigate('/dashboard'); return; }
     fetchNurses();
@@ -141,9 +158,15 @@ const ManageHomeNurses = () => {
                       Level: {n.nursing_level}
                     </div>
                   )}
-                  {typeof n.age === 'number' && (
-                    <div className="text-sm text-gray-600">Age: {n.age} yrs</div>
-                  )}
+                  <div className="text-sm text-gray-600">
+                    {typeof n.age === 'number' && <>Age: {n.age} yrs</>}
+                    {n.gender && (
+                      <>
+                        {typeof n.age === 'number' ? ' • ' : ''}
+                        {n.gender.charAt(0).toUpperCase() + n.gender.slice(1)}
+                      </>
+                    )}
+                  </div>
                   {n.years_of_experience > 0 && (
                     <div className="text-sm text-gray-600">Experience: {n.years_of_experience} yrs</div>
                   )}
@@ -207,6 +230,9 @@ const ManageHomeNurses = () => {
                   <div className="flex flex-wrap gap-3 mt-2 text-sm text-gray-700">
                     {selected.nursing_level && (<span>Level: {selected.nursing_level}</span>)}
                     {typeof selected.age === 'number' && (<span>Age: {selected.age} yrs</span>)}
+                    {selected.gender && (
+                      <span>{selected.gender.charAt(0).toUpperCase() + selected.gender.slice(1)}</span>
+                    )}
                     {selected.years_of_experience > 0 && (<span>Experience: {selected.years_of_experience} yrs</span>)}
                     {selected.date_of_birth && (<span>DOB: {selected.date_of_birth}</span>)}
                   </div>
@@ -217,9 +243,19 @@ const ManageHomeNurses = () => {
                 <div>
                   <h4 className="font-semibold text-gray-900 mb-2">Services</h4>
                   <div className="flex flex-wrap gap-2">
-                    {selected.services.map((s) => (
-                      <span key={s.id} className="px-3 py-1 bg-gray-100 text-gray-800 rounded-full text-sm">{s.name}</span>
-                    ))}
+                    {selected.services.map((s) => {
+                      const rates = parseServiceRates(selected.service_pricing);
+                      const rate = rates[s.name];
+                      return (
+                        <span
+                          key={s.id}
+                          className="px-3 py-1 bg-gray-100 text-gray-800 rounded-full text-sm"
+                        >
+                          {s.name}
+                          {rate ? ` (Starting Service fee: ${rate})` : ''}
+                        </span>
+                      );
+                    })}
                   </div>
                 </div>
               )}

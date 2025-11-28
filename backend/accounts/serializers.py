@@ -102,3 +102,12 @@ class LoginSerializer(serializers.Serializer):
     phone_number = serializers.CharField(required=True)
     password = serializers.CharField(required=True, write_only=True)
 
+
+class SendLoginPinSerializer(serializers.Serializer):
+    phone_number = serializers.CharField(required=True)
+
+
+class VerifyLoginPinSerializer(serializers.Serializer):
+    phone_number = serializers.CharField(required=True)
+    pin = serializers.CharField(required=True, max_length=6)
+

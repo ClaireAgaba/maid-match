@@ -8,6 +8,21 @@ import {
   CheckCircle, AlertCircle, Star, Award 
 } from 'lucide-react';
 
+const MAID_SERVICE_OPTIONS = [
+  'Domestic Housekeeping Services',
+  'Nanny / Childcare Services',
+  'Home Care & Elderly Support',
+  'Residential Cleaning Services',
+  'Live-in Maid Services',
+  'Live-out Maid Services',
+  'Cooking & Meal Preparation',
+  'Laundry & Ironing Services',
+  'Domestic Staff Placement / Recruitment',
+  'Home Assistant Services',
+  'After-Party & Event Cleaning Services',
+  'Cooking, Serving & Event Helpers',
+];
+
 const MaidProfileSettings = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -31,6 +46,7 @@ const MaidProfileSettings = () => {
     hourly_rate: '',
     category: '',
     skills: '',
+    service_pricing: '',
     availability_status: true,
     
     // Files
@@ -66,6 +82,7 @@ const MaidProfileSettings = () => {
         hourly_rate: profile.hourly_rate || '',
         category: profile.category || '',
         skills: profile.skills || '',
+        service_pricing: profile.service_pricing || '',
         availability_status: profile.availability_status ?? true,
         profile_photo: null,
         id_document: null,
@@ -89,6 +106,70 @@ const MaidProfileSettings = () => {
       setErrors({ general: 'Failed to load profile' });
       setLoading(false);
     }
+  };
+
+  // Local map of per-service starting pay, derived from the single
+  // service_pricing text field (one "Service: text" per line).
+  const [serviceRates, setServiceRates] = useState({});
+
+  useEffect(() => {
+    const raw = profileData.service_pricing || '';
+    const lines = raw.split('\n').map((l) => l.trim()).filter((l) => l.length > 0);
+    const map = {};
+    lines.forEach((line) => {
+      const idx = line.indexOf(':');
+      if (idx !== -1) {
+        const name = line.slice(0, idx).trim();
+        const value = line.slice(idx + 1).trim();
+        if (name) map[name] = value;
+      }
+    });
+    setServiceRates(map);
+  }, [profileData.service_pricing]);
+
+  const toggleServiceInSkills = (serviceName) => {
+    setProfileData((prev) => {
+      const raw = prev.skills || '';
+      const parts = raw
+        .split(',')
+        .map((s) => s.trim())
+        .filter((s) => s.length > 0);
+      const set = new Set(parts);
+      if (set.has(serviceName)) {
+        set.delete(serviceName);
+      } else {
+        set.add(serviceName);
+      }
+      const nextSkills = Array.from(set).join(', ');
+      return { ...prev, skills: nextSkills };
+    });
+  };
+
+  const isServiceChecked = (serviceName) => {
+    const raw = profileData.skills || '';
+    const parts = raw
+      .split(',')
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0);
+    return parts.includes(serviceName);
+  };
+
+  const handleServiceRateChange = (serviceName, value) => {
+    setServiceRates((prev) => {
+      const next = { ...prev, [serviceName]: value };
+
+      // Rebuild service_pricing as one line per service: "Service: value"
+      const lines = [];
+      MAID_SERVICE_OPTIONS.forEach((svc) => {
+        const v = next[svc];
+        if (v && v.trim().length > 0) {
+          lines.push(`${svc}: ${v.trim()}`);
+        }
+      });
+
+      setProfileData((p) => ({ ...p, service_pricing: lines.join('\n') }));
+      return next;
+    });
   };
 
   const handleChange = (e) => {
@@ -437,23 +518,6 @@ const MaidProfileSettings = () => {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Starting Pay (UGX) *
-                </label>
-                <input
-                  type="number"
-                  name="hourly_rate"
-                  min="0"
-                  step="0.01"
-                  required
-                  className="input-field"
-                  placeholder="e.g., 100000"
-                  value={profileData.hourly_rate}
-                  onChange={handleChange}
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
                   Maid Category
                 </label>
                 <select
@@ -465,13 +529,44 @@ const MaidProfileSettings = () => {
                   <option value="">Select Category</option>
                   <option value="temporary">Temporary</option>
                   <option value="live_in">Live-in</option>
+                  <option value="placement">Domestic Staff Placement</option>
                 </select>
                 <p className="mt-1 text-xs text-gray-500">Temporary: come work and go. Live-in: moves in with the homeowner.</p>
               </div>
 
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Skills & Services
+                  Services you offer
+                </label>
+
+                {/* Predefined services checklist that keeps the skills field in sync */}
+                <div className="mb-3">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {MAID_SERVICE_OPTIONS.map((service) => (
+                      <div key={service} className="flex flex-col gap-1">
+                        <label className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={isServiceChecked(service)}
+                            onChange={() => toggleServiceInSkills(service)}
+                          />
+                          <span className="text-sm">{service}</span>
+                        </label>
+                        <input
+                          type="text"
+                          className="input-field text-xs"
+                          placeholder="Starting pay for this service (optional)"
+                          value={serviceRates[service] || ''}
+                          onChange={(e) => handleServiceRateChange(service, e.target.value)}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Free-text skills stays as the single source of truth sent to the backend */}
+                <label className="block text-sm font-medium text-gray-700 mb-2 mt-4">
+                  Additional Skills & Services
                 </label>
                 <textarea
                   name="skills"
@@ -482,7 +577,7 @@ const MaidProfileSettings = () => {
                   onChange={handleChange}
                 />
                 <p className="mt-1 text-sm text-gray-500">
-                  List your skills separated by commas
+                  You can also type or edit your skills manually. They will be saved as one list.
                 </p>
               </div>
 

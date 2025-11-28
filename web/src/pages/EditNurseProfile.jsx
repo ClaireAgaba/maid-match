@@ -11,6 +11,7 @@ const EditNurseProfile = () => {
   const [err, setErr] = useState('');
   const [form, setForm] = useState({
     nursing_level: '',
+    gender: '',
     council_registration_number: '',
     years_of_experience: 0,
     preferred_working_hours: '',
@@ -19,8 +20,13 @@ const EditNurseProfile = () => {
     services: [],
     display_photo: null,
     date_of_birth: '',
+    service_pricing: '',
   });
   const [categories, setCategories] = useState(null);
+
+  // Local map of per-category starting pay, derived from the
+  // single service_pricing text field (one "Category: text" per line).
+  const [categoryRates, setCategoryRates] = useState({});
 
   const [exists, setExists] = useState(true);
 
@@ -34,6 +40,7 @@ const EditNurseProfile = () => {
           const p = res.data || {};
           setForm({
             nursing_level: p.nursing_level || '',
+            gender: p.gender || '',
             council_registration_number: p.council_registration_number || '',
             years_of_experience: p.years_of_experience || 0,
             preferred_working_hours: p.preferred_working_hours || '',
@@ -42,6 +49,7 @@ const EditNurseProfile = () => {
             services: Array.isArray(p.services) ? p.services.map(s=>s.id) : [],
             display_photo: null,
             date_of_birth: p.date_of_birth || '',
+            service_pricing: p.service_pricing || '',
           });
           setExists(true);
         } catch (e) {
@@ -61,12 +69,29 @@ const EditNurseProfile = () => {
     })();
   }, [isHomeNurse, navigate]);
 
+  // Keep categoryRates in sync with the raw service_pricing text
+  useEffect(() => {
+    const raw = form.service_pricing || '';
+    const lines = raw.split('\n').map((l) => l.trim()).filter((l) => l.length > 0);
+    const map = {};
+    lines.forEach((line) => {
+      const idx = line.indexOf(':');
+      if (idx !== -1) {
+        const name = line.slice(0, idx).trim();
+        const value = line.slice(idx + 1).trim();
+        if (name) map[name] = value;
+      }
+    });
+    setCategoryRates(map);
+  }, [form.service_pricing]);
+
   const onSubmit = async (e) => {
     e.preventDefault();
     try {
       setSaving(true);
       const fd = new FormData();
       if (form.nursing_level) fd.append('nursing_level', form.nursing_level);
+      if (form.gender) fd.append('gender', form.gender);
       if (form.council_registration_number) fd.append('council_registration_number', form.council_registration_number);
       fd.append('years_of_experience', String(Number(form.years_of_experience || 0)));
       if (form.preferred_working_hours) fd.append('preferred_working_hours', form.preferred_working_hours);
@@ -75,6 +100,7 @@ const EditNurseProfile = () => {
       (form.services || []).forEach((id) => fd.append('services', id));
       if (form.display_photo) fd.append('display_photo', form.display_photo);
       if (form.date_of_birth) fd.append('date_of_birth', form.date_of_birth);
+      if (form.service_pricing) fd.append('service_pricing', form.service_pricing);
       if (exists) await homeNursingAPI.updateMe(fd); else await homeNursingAPI.register(fd);
       navigate('/nurse/profile');
     } catch (e) {
@@ -110,6 +136,19 @@ const EditNurseProfile = () => {
           <div>
             <label className="block text-sm text-gray-700 mb-1">Date of Birth</label>
             <input type="date" className="input-field" value={form.date_of_birth} onChange={e=>setForm({...form, date_of_birth: e.target.value})} />
+          </div>
+          <div>
+            <label className="block text-sm text-gray-700 mb-1">Gender</label>
+            <select
+              className="input-field"
+              value={form.gender}
+              onChange={(e) => setForm({ ...form, gender: e.target.value })}
+            >
+              <option value="">Select gender</option>
+              <option value="female">Female</option>
+              <option value="male">Male</option>
+              <option value="other">Other</option>
+            </select>
           </div>
           <div>
             <label className="block text-sm text-gray-700 mb-1">Nursing level</label>
@@ -149,20 +188,68 @@ const EditNurseProfile = () => {
               Object.entries(categories).map(([group, items]) => (
                 <div key={group} className="mb-3">
                   <div className="font-semibold text-sm mb-1">{group}</div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     {items.map((it) => (
-                      <label key={it.id} className="flex items-center gap-2">
+                      <div key={it.id} className="flex flex-col gap-1">
+                        <label className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={form.services.includes(it.id)}
+                            onChange={() => {
+                              const set = new Set(form.services);
+                              if (set.has(it.id)) set.delete(it.id); else set.add(it.id);
+                              const nextServices = Array.from(set);
+                              // When services change, rebuild service_pricing to only
+                              // include selected categories that have a rate.
+                              setForm((prev) => {
+                                const updated = { ...prev, services: nextServices };
+                                if (!categories) return updated;
+                                const lines = [];
+                                Object.entries(categories).forEach(([_g, cats]) => {
+                                  cats.forEach((cat) => {
+                                    if (!nextServices.includes(cat.id)) return;
+                                    const v = categoryRates[cat.name];
+                                    if (v && v.trim().length > 0) {
+                                      lines.push(`${cat.name}: ${v.trim()}`);
+                                    }
+                                  });
+                                });
+                                updated.service_pricing = lines.join('\n');
+                                return updated;
+                              });
+                            }}
+                          />
+                          <span className="text-sm">{it.name}</span>
+                        </label>
                         <input
-                          type="checkbox"
-                          checked={form.services.includes(it.id)}
-                          onChange={() => {
-                            const set = new Set(form.services);
-                            if (set.has(it.id)) set.delete(it.id); else set.add(it.id);
-                            setForm({...form, services: Array.from(set)});
+                          type="text"
+                          className="input-field text-xs"
+                          placeholder="Starting pay for this category (optional)"
+                          value={categoryRates[it.name] || ''}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            setCategoryRates((prev) => {
+                              const next = { ...prev, [it.name]: value };
+                              // Rebuild service_pricing: only selected categories with values
+                              setForm((prevForm) => {
+                                if (!categories) return { ...prevForm, service_pricing: '' };
+                                const lines = [];
+                                Object.entries(categories).forEach(([_g, cats]) => {
+                                  cats.forEach((cat) => {
+                                    if (!prevForm.services.includes(cat.id)) return;
+                                    const v = next[cat.name];
+                                    if (v && v.trim().length > 0) {
+                                      lines.push(`${cat.name}: ${v.trim()}`);
+                                    }
+                                  });
+                                });
+                                return { ...prevForm, service_pricing: lines.join('\n') };
+                              });
+                              return next;
+                            });
                           }}
                         />
-                        <span className="text-sm">{it.name}</span>
-                      </label>
+                      </div>
                     ))}
                   </div>
                 </div>

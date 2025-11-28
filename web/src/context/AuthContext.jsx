@@ -43,6 +43,35 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const sendLoginPin = async (phone_number) => {
+    try {
+      await authAPI.getCsrfToken();
+      await authAPI.sendLoginPin({ phone_number });
+      return { success: true };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.response?.data?.error || 'Failed to send login code',
+      };
+    }
+  };
+
+  const verifyLoginPin = async ({ phone_number, pin }) => {
+    try {
+      await authAPI.getCsrfToken();
+      const response = await authAPI.verifyLoginPin({ phone_number, pin });
+      const userData = response.data.user;
+      setUser(userData);
+      localStorage.setItem('user', JSON.stringify(userData));
+      return { success: true, user: userData };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.response?.data?.error || 'Login failed',
+      };
+    }
+  };
+
   const register = async (userData) => {
     try {
       const response = await authAPI.register(userData);
@@ -73,6 +102,8 @@ export const AuthProvider = ({ children }) => {
     user,
     loading,
     login,
+    sendLoginPin,
+    verifyLoginPin,
     register,
     logout,
     isAuthenticated: !!user,

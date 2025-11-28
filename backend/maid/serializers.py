@@ -28,7 +28,7 @@ class MaidProfileSerializer(serializers.ModelSerializer):
             'full_name', 'date_of_birth', 'age', 'profile_photo', 
             'location', 'latitude', 'longitude', 'phone_number', 'email',
             # Professional Info
-            'bio', 'experience_years', 'hourly_rate', 'category', 'skills', 
+            'bio', 'experience_years', 'hourly_rate', 'category', 'skills', 'service_pricing',
             'availability_status', 'rating', 'total_jobs_completed',
             # Account Status
             'is_verified', 'is_enabled', 'verification_notes',
@@ -59,7 +59,7 @@ class MaidProfileUpdateSerializer(serializers.ModelSerializer):
             'full_name', 'date_of_birth', 'profile_photo', 
             'location', 'latitude', 'longitude', 'phone_number', 'email',
             # Professional Info
-            'bio', 'experience_years', 'hourly_rate', 'category', 'skills',
+            'bio', 'experience_years', 'hourly_rate', 'category', 'skills', 'service_pricing',
             'availability_status', 
             # Documents
             'id_document', 'certificate'
@@ -78,7 +78,7 @@ class MaidProfileListSerializer(serializers.ModelSerializer):
         model = MaidProfile
         fields = [
             'id', 'username', 'full_name', 'gender', 'age', 'profile_photo', 'category',
-            'location', 'phone_number', 'email', 'skills',
+            'location', 'phone_number', 'email', 'skills', 'service_pricing',
             'experience_years', 'hourly_rate', 'availability_status',
             'rating', 'total_jobs_completed',
             'is_verified', 'is_enabled', 'verification_notes', 'created_at'
