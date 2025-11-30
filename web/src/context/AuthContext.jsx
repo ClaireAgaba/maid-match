@@ -26,12 +26,12 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (credentials) => {
     try {
-      // First, get CSRF token
-      await authAPI.getCsrfToken();
-      
-      // Then attempt login
       const response = await authAPI.login(credentials);
       const userData = response.data.user;
+      const accessToken = response.data.access;
+      if (accessToken) {
+        localStorage.setItem('accessToken', accessToken);
+      }
       setUser(userData);
       localStorage.setItem('user', JSON.stringify(userData));
       return { success: true, user: userData };
@@ -45,7 +45,6 @@ export const AuthProvider = ({ children }) => {
 
   const sendLoginPin = async (phone_number) => {
     try {
-      await authAPI.getCsrfToken();
       await authAPI.sendLoginPin({ phone_number });
       return { success: true };
     } catch (error) {
@@ -58,9 +57,12 @@ export const AuthProvider = ({ children }) => {
 
   const verifyLoginPin = async ({ phone_number, pin }) => {
     try {
-      await authAPI.getCsrfToken();
       const response = await authAPI.verifyLoginPin({ phone_number, pin });
       const userData = response.data.user;
+      const accessToken = response.data.access;
+      if (accessToken) {
+        localStorage.setItem('accessToken', accessToken);
+      }
       setUser(userData);
       localStorage.setItem('user', JSON.stringify(userData));
       return { success: true, user: userData };
@@ -76,6 +78,10 @@ export const AuthProvider = ({ children }) => {
     try {
       const response = await authAPI.register(userData);
       const newUser = response.data.user;
+      const accessToken = response.data.access;
+      if (accessToken) {
+        localStorage.setItem('accessToken', accessToken);
+      }
       setUser(newUser);
       localStorage.setItem('user', JSON.stringify(newUser));
       return { success: true, user: newUser };
@@ -95,6 +101,7 @@ export const AuthProvider = ({ children }) => {
     } finally {
       setUser(null);
       localStorage.removeItem('user');
+      localStorage.removeItem('accessToken');
     }
   };
 

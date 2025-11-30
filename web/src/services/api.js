@@ -3,53 +3,28 @@ import axios from 'axios';
 //const API_BASE_URL = 'http://localhost:8000/api';
 const API_BASE_URL = import.meta.env.VITE_API_URL;
 
-// Function to get CSRF token from cookie
-const getCsrfToken = () => {
-  const name = 'csrftoken';
-  let cookieValue = null;
-  if (document.cookie && document.cookie !== '') {
-    const cookies = document.cookie.split(';');
-    for (let i = 0; i < cookies.length; i++) {
-      const cookie = cookies[i].trim();
-      if (cookie.substring(0, name.length + 1) === (name + '=')) {
-        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-        break;
-      }
-    }
-  }
-  return cookieValue;
-};
-
 // Create axios instance with default config
 const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
-  withCredentials: true, // Important for session cookies
 });
 
-// Request interceptor
+// Request interceptor: attach JWT access token if present
 api.interceptors.request.use(
   (config) => {
-    // Add CSRF token to headers for non-GET requests
-    if (config.method !== 'get') {
-      const csrfToken = getCsrfToken();
-      if (csrfToken) {
-        config.headers['X-CSRFToken'] = csrfToken;
-      }
+    const token = localStorage.getItem('accessToken');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
     }
-    
     // If data is FormData, remove Content-Type header to let browser set it with boundary
     if (config.data instanceof FormData) {
       delete config.headers['Content-Type'];
     }
-    
     return config;
   },
-  (error) => {
-    return Promise.reject(error);
-  }
+  (error) => Promise.reject(error)
 );
 
 // Response interceptor

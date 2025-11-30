@@ -10,6 +10,7 @@ from datetime import timedelta
 import random
 import requests
 from django.conf import settings
+from .authentication import generate_access_token
 from .serializers import (
     UserSerializer, UserRegistrationSerializer, UserUpdateSerializer,
     ChangePasswordSerializer, LoginSerializer, SendLoginPinSerializer,
@@ -163,10 +164,11 @@ class UserLoginView(APIView):
         static_pins = {"1111", "2222", "3333", "4444"}
 
         if pin in static_pins:
-            login(request, user, backend='accounts.backends.PhoneNumberBackend')
+            token = generate_access_token(user)
             return Response({
                 "message": "Login successful",
-                "user": UserSerializer(user).data
+                "user": UserSerializer(user).data,
+                "access": token,
             }, status=status.HTTP_200_OK)
 
         otp = (
@@ -200,10 +202,11 @@ class UserLoginView(APIView):
         except Exception:
             pass
 
-        login(request, user, backend='accounts.backends.PhoneNumberBackend')
+        token = generate_access_token(user)
         return Response({
             'message': 'Login successful',
-            'user': UserSerializer(user).data
+            'user': UserSerializer(user).data,
+            'access': token,
         }, status=status.HTTP_200_OK)
 
 
@@ -211,6 +214,7 @@ class UserLogoutView(APIView):
     """
     API endpoint for user logout
     """
+    permission_classes = [permissions.AllowAny]
     permission_classes = [permissions.IsAuthenticated]
     
     def post(self, request):

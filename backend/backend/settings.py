@@ -156,7 +156,7 @@ AUTHENTICATION_BACKENDS = [
 # REST Framework Configuration
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
-        'rest_framework.authentication.SessionAuthentication',
+        'accounts.authentication.SimpleJWTAuthentication',
     ],
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
@@ -181,7 +181,7 @@ CORS_ALLOW_CREDENTIALS = True
 # Allow all origins in development (change in production)
 CORS_ALLOW_ALL_ORIGINS = DEBUG
 
-# CSRF Configuration for API
+# CSRF Configuration for API (still useful for any cookie-based views)
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:3000",
     "http://localhost:19006",
@@ -189,11 +189,13 @@ CSRF_TRUSTED_ORIGINS = [
     "https://maidmatchug.netlify.app",
 ]
 
-# Exempt API endpoints from CSRF (for development)
-# In production, use proper CSRF token handling
-CSRF_COOKIE_HTTPONLY = False
-CSRF_COOKIE_SAMESITE = 'Lax'
-SESSION_COOKIE_SAMESITE = 'Lax'
+# For token-based API auth we don't rely on CSRF cookies, so keep defaults
+
+CSRF_COOKIE_SECURE = True
+SESSION_COOKIE_SECURE = True
+
+CSRF_COOKIE_SAMESITE = "None"
+SESSION_COOKIE_SAMESITE = "None"
 
 # WhatsApp Cloud API
 WHATSAPP_ACCESS_TOKEN = config('WHATSAPP_ACCESS_TOKEN', default='')
