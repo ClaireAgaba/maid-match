@@ -173,6 +173,7 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",  # React web app
     "http://localhost:19006",  # Expo web
     "http://localhost:19000",  # Expo dev server
+    "https://maidmatchug.netlify.app",
 ]
 
 CORS_ALLOW_CREDENTIALS = True
@@ -185,6 +186,7 @@ CSRF_TRUSTED_ORIGINS = [
     "http://localhost:3000",
     "http://localhost:19006",
     "http://localhost:19000",
+    "https://maidmatchug.netlify.app",
 ]
 
 # Exempt API endpoints from CSRF (for development)
