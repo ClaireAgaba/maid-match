@@ -101,15 +101,14 @@ class UserRegistrationView(APIView):
                     home_type=home_type,
                     number_of_rooms=number_of_rooms
                 )
-            # Log the user in so subsequent requests are authenticated immediately
-            try:
-                login(request, user, backend='accounts.backends.PhoneNumberBackend')
-            except Exception:
-                pass
+            
+            # Issue a JWT access token so the SPA can authenticate immediately
+            access_token = generate_access_token(user)
 
             return Response({
                 'message': 'User registered successfully',
-                'user': UserSerializer(user).data
+                'user': UserSerializer(user).data,
+                'access': access_token,
             }, status=status.HTTP_201_CREATED)
         
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

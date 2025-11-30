@@ -20,11 +20,14 @@ class UserSerializer(serializers.ModelSerializer):
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
     """
-    Serializer for user registration
-    Phone number is the primary identifier for local maids
+    Serializer for user registration.
+
+    Phone number is the primary identifier. We only require an explicit
+    password for homeowners; for maids / cleaning companies / home nurses we
+    use passwordless login (OTP) and can generate an internal password.
     """
-    password = serializers.CharField(write_only=True, required=True, validators=[validate_password])
-    password2 = serializers.CharField(write_only=True, required=True, label="Confirm Password")
+    password = serializers.CharField(write_only=True, required=False, validators=[validate_password])
+    password2 = serializers.CharField(write_only=True, required=False, label="Confirm Password")
     
     class Meta:
         model = User
@@ -53,20 +56,33 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         return normalized
 
     def validate(self, attrs):
-        if attrs['password'] != attrs['password2']:
-            raise serializers.ValidationError({"password": "Password fields didn't match."})
-        
+        password = attrs.get('password')
+        password2 = attrs.get('password2')
+        user_type = attrs.get('user_type')
+
         allowed = ['homeowner', 'maid', 'cleaning_company', 'home_nurse', 'admin']
-        if attrs['user_type'] not in allowed:
+        if user_type not in allowed:
             raise serializers.ValidationError({
                 "user_type": "Invalid user type. Must be one of: homeowner, maid, cleaning_company, home_nurse, admin."
             })
-        
+
+        # Password is entirely optional for all user types. If provided, the two
+        # fields must still match so that admins creating accounts via API do not
+        # accidentally set a mismatched password.
+        if password or password2:
+            if password != password2:
+                raise serializers.ValidationError({"password": "Password fields didn't match."})
+
         return attrs
-    
+
     def create(self, validated_data):
-        validated_data.pop('password2')
+        # We ignore any supplied password and always mark the account as
+        # passwordless. Authentication is handled via OTP / token flows.
+        validated_data.pop('password', None)
+        validated_data.pop('password2', None)
         user = User.objects.create_user(**validated_data)
+        user.set_unusable_password()
+        user.save(update_fields=["password"])
         return user
 
 
