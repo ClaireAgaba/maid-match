@@ -77,6 +77,31 @@ class MyHomeNurseView(generics.RetrieveUpdateAPIView):
         return ctx
 
 
+class MyHomeNurseLocationView(APIView):
+    """Update live GPS location for the current nurse.
+
+    Expects JSON body like {"current_latitude": 0.0, "current_longitude": 0.0}.
+    """
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        try:
+            nurse = HomeNurse.objects.get(user=request.user)
+        except HomeNurse.DoesNotExist:
+            return Response({"detail": "Home nurse profile not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        lat = request.data.get("current_latitude")
+        lng = request.data.get("current_longitude")
+        if lat is None or lng is None:
+            return Response({"detail": "current_latitude and current_longitude are required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        nurse.current_latitude = lat
+        nurse.current_longitude = lng
+        nurse.save(update_fields=["current_latitude", "current_longitude"])
+        return Response({"detail": "Location updated"}, status=status.HTTP_200_OK)
+
+
 class AdminHomeNurseListView(generics.ListAPIView):
     """Admin list of home nurses with basic filters and pagination."""
     serializer_class = AdminHomeNurseSerializer

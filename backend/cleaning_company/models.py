@@ -34,6 +34,12 @@ class CleaningCompany(models.Model):
     company_name = models.CharField(max_length=200)
     services = models.ManyToManyField(ServiceCategory, related_name="companies", blank=True)
     location = models.CharField(max_length=255)
+    # Optional base GPS coordinates for company HQ/primary service area
+    latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    # Live GPS location used for real-time matching (updated from dashboards)
+    current_latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    current_longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
     display_photo = models.ImageField(upload_to="company_photos/", blank=True, null=True)
     verified = models.BooleanField(default=False)
     service_pricing = models.TextField(blank=True, null=True, help_text="Per-service starting pay in free text (one per line)")

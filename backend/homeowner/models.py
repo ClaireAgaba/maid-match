@@ -9,6 +9,12 @@ class HomeownerProfile(models.Model):
     """
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='homeowner_profile')
     home_address = models.TextField(blank=True, null=True)
+    # Optional base GPS coordinates for the home
+    latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    # Live GPS location used for real-time matching (updated from dashboards)
+    current_latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    current_longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
     home_type = models.CharField(max_length=50, choices=(
         ('apartment', 'Apartment'),
         ('house', 'House'),

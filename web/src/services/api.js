@@ -1,7 +1,7 @@
 import axios from 'axios';
 
-//const API_BASE_URL = 'http://localhost:8000/api';
-const API_BASE_URL = import.meta.env.VITE_API_URL;
+const API_BASE_URL = 'http://localhost:8000/api';
+//const API_BASE_URL = import.meta.env.VITE_API_URL;
 
 // Create axios instance with default config
 const api = axios.create({
@@ -143,6 +143,14 @@ export const homeNursingAPI = {
   adminEnable: (id) => api.post(`/home-nursing/admin/nurses/${id}/enable/`),
   adminDisable: (id) => api.post(`/home-nursing/admin/nurses/${id}/disable/`),
   browse: (params) => api.get('/home-nursing/public/browse/', { params }),
+};
+
+// Live Location API
+export const locationAPI = {
+  updateMaid: (coords) => api.post('/maid/profiles/update_location/', coords),
+  updateHomeowner: (coords) => api.post('/homeowner/profiles/update_location/', coords),
+  updateCleaningCompany: (coords) => api.post('/cleaning-company/me/update-location/', coords),
+  updateHomeNurse: (coords) => api.post('/home-nursing/me/update-location/', coords),
 };
 
 export default api;

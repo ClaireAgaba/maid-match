@@ -58,6 +58,12 @@ class HomeNurse(models.Model):
     emergency_availability = models.BooleanField(default=False)
     is_verified = models.BooleanField(default=False)
     location = models.CharField(max_length=255, blank=True)
+    # Optional base GPS coordinates for preferred working area
+    latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    # Live GPS location used for real-time matching (updated from dashboards)
+    current_latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    current_longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
     service_pricing = models.TextField(blank=True, null=True, help_text="Per-category starting pay in free text (one per line)")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

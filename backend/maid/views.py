@@ -91,6 +91,27 @@ class MaidProfileViewSet(viewsets.ModelViewSet):
             return Response({
                 'error': 'Maid profile not found'
             }, status=status.HTTP_404_NOT_FOUND)
+
+    @action(detail=False, methods=['post'], permission_classes=[permissions.IsAuthenticated])
+    def update_location(self, request):
+        """Update live GPS location for the current maid.
+
+        Expects JSON body like {"current_latitude": 0.0, "current_longitude": 0.0}.
+        """
+        try:
+            profile = MaidProfile.objects.get(user=request.user)
+        except MaidProfile.DoesNotExist:
+            return Response({'detail': 'Maid profile not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        lat = request.data.get('current_latitude')
+        lng = request.data.get('current_longitude')
+        if lat is None or lng is None:
+            return Response({'detail': 'current_latitude and current_longitude are required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        profile.current_latitude = lat
+        profile.current_longitude = lng
+        profile.save(update_fields=['current_latitude', 'current_longitude'])
+        return Response({'detail': 'Location updated'}, status=status.HTTP_200_OK)
     
     @action(detail=False, methods=['get'])
     def available(self, request):

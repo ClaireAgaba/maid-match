@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import BrandLogo from '../components/BrandLogo';
 import Navbar from '../components/Navbar';
+import { useLiveLocationUpdater } from '../hooks/useLiveLocationUpdater';
 import { maidAPI, homeownerAPI, authAPI, reviewAPI, cleaningCompanyAPI, homeNursingAPI, jobAPI, applicationAPI } from '../services/api';
 import {
   Briefcase, Users, Star, Settings, LogOut,
@@ -91,6 +92,22 @@ const Dashboard = () => {
     service_target: 'maid',
   });
   const [submittingService, setSubmittingService] = useState(false);
+
+  const { status: liveLocationStatus, coords: liveLocationCoords, placeName: liveLocationPlace } = useLiveLocationUpdater(user);
+  const liveLocationLabel = (() => {
+    if (liveLocationStatus === 'updating') return 'Detecting your live location...';
+    if (liveLocationStatus === 'error') return 'Live location unavailable';
+    if (liveLocationStatus === 'ok') {
+      if (liveLocationPlace) {
+        return `Live location: ${liveLocationPlace}`;
+      }
+      if (liveLocationCoords) {
+        const { lat, lng } = liveLocationCoords;
+        return `Live location: ${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+      }
+    }
+    return null;
+  })();
 
   useEffect(() => {
     const fetchData = async () => {
@@ -1366,6 +1383,11 @@ const Dashboard = () => {
                             >Detect</button>
                           )}
                         </div>
+                        {liveLocationLabel && (
+                          <p className="mt-1 text-xs text-gray-500">
+                            {liveLocationLabel}
+                          </p>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -1591,6 +1613,11 @@ const Dashboard = () => {
                         <Home className="h-4 w-4" />
                         {currentUser.address || 'Location not set'}
                       </p>
+                      {liveLocationLabel && (
+                        <p className="mt-1 text-xs text-gray-500">
+                          {liveLocationLabel}
+                        </p>
+                      )}
                     </div>
                     <div className="w-full sm:w-auto">
                       <button
