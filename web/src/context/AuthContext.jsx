@@ -19,7 +19,13 @@ export const AuthProvider = ({ children }) => {
     // Check if user is logged in on mount
     const storedUser = localStorage.getItem('user');
     if (storedUser) {
-      setUser(JSON.parse(storedUser));
+      try {
+        const parsed = JSON.parse(storedUser);
+        setUser(parsed);
+      } catch (e) {
+        // Clear corrupted user data that can't be parsed
+        localStorage.removeItem('user');
+      }
     }
     setLoading(false);
   }, []);
