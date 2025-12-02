@@ -22,3 +22,6 @@ class UserAdmin(BaseUserAdmin):
             'fields': ('user_type', 'phone_number', 'email')
         }),
     )
+
+# Point Django admin "VIEW SITE" link to the frontend dashboard
+admin.site.site_url = "https://app.maidmatchug.org/dashboard"
