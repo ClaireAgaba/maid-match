@@ -1,0 +1,6 @@
+{
+	"appId": "com.maidmatch.app",
+	"appName": "MaidMatch",
+	"webDir": "../web/dist",
+	"bundledWebRuntime": false
+}

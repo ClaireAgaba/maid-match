@@ -31,6 +31,8 @@ const FindCleaningCompanies = () => {
   const [selected, setSelected] = useState(null);
   const [showContact, setShowContact] = useState(false);
   const [showRate, setShowRate] = useState(false);
+  const [gallery, setGallery] = useState([]);
+  const [galleryLoading, setGalleryLoading] = useState(false);
   const [ratePunctuality, setRatePunctuality] = useState(0);
   const [rateQuality, setRateQuality] = useState(0);
   const [rateCommunication, setRateCommunication] = useState(0);
@@ -51,6 +53,29 @@ const FindCleaningCompanies = () => {
       }
     })();
   }, [search]);
+
+  // Load public gallery images when a company is selected
+  useEffect(() => {
+    const loadGallery = async () => {
+      if (!selected?.id) {
+        setGallery([]);
+        return;
+      }
+      try {
+        setGalleryLoading(true);
+        const res = await cleaningCompanyAPI.publicGallery(selected.id);
+        const data = res.data?.results || res.data || [];
+        setGallery(Array.isArray(data) ? data : []);
+      } catch (e) {
+        console.error('Failed to load company gallery', e);
+        setGallery([]);
+      } finally {
+        setGalleryLoading(false);
+      }
+    };
+
+    loadGallery();
+  }, [selected?.id]);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -184,6 +209,30 @@ const FindCleaningCompanies = () => {
                   </div>
                 </div>
               )}
+
+              {/* Gallery section */}
+              <div>
+                <p className="text-gray-900 font-medium mb-1">Gallery</p>
+                {galleryLoading ? (
+                  <p className="text-sm text-gray-500">Loading photos...</p>
+                ) : gallery && gallery.length > 0 ? (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-2">
+                    {gallery.map((img) => (
+                      <div key={img.id} className="relative rounded-lg overflow-hidden bg-gray-100">
+                        {img.image_url && (
+                          <img
+                            src={img.image_url}
+                            alt={img.caption || selected.company_name}
+                            className="h-28 w-full object-cover"
+                          />
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-500">This company has not shared any gallery photos yet.</p>
+                )}
+              </div>
 
               {showContact && (
                 <div className="p-4 border rounded-lg bg-gray-50">

@@ -72,6 +72,26 @@ class MyCleaningCompanyView(generics.RetrieveUpdateAPIView):
         return ctx
 
 
+class PublicCompanyGalleryListView(generics.ListAPIView):
+    """Public, read-only gallery for a given cleaning company.
+
+    Used by homeowners when browsing cleaning companies so they can
+    see example work (photos) before contacting a company.
+    """
+
+    serializer_class = CleaningWorkImageSerializer
+    permission_classes = []  # public
+
+    def get_queryset(self):
+        company_id = self.kwargs.get("company_id")
+        return CleaningWorkImage.objects.filter(company_id=company_id)
+
+    def get_serializer_context(self):
+        ctx = super().get_serializer_context()
+        ctx["request"] = self.request
+        return ctx
+
+
 class AdminCompanyListView(generics.ListAPIView):
     """Admin list of cleaning companies with filters and global counts."""
     permission_classes = [permissions.IsAdminUser]

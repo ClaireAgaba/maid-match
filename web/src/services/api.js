@@ -133,6 +133,7 @@ export const cleaningCompanyAPI = {
   adminList: (params) => api.get('/cleaning-company/admin/companies/', { params }),
   adminBulk: (data) => api.post('/cleaning-company/admin/companies/bulk/', data),
   browse: (params) => api.get('/cleaning-company/browse/', { params }),
+  publicGallery: (companyId) => api.get(`/cleaning-company/public/${companyId}/gallery/`),
 };
 
 // Home Nursing API

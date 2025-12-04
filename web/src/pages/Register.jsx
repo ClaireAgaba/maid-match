@@ -50,6 +50,7 @@ const Register = () => {
   const [loading, setLoading] = useState(false);
   const [cleaningCategories, setCleaningCategories] = useState(null);
   const [nursingCategories, setNursingCategories] = useState(null);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
 
   // Fetch grouped categories when corresponding role is selected
   useEffect(() => {
@@ -96,6 +97,12 @@ const Register = () => {
     e.preventDefault();
     setLoading(true);
     setErrors({});
+
+    if (!acceptedTerms) {
+      setErrors({ non_field_errors: ['You must agree to the MaidMatch Terms & Conditions before creating an account.'] });
+      setLoading(false);
+      return;
+    }
 
     // Validate maid-specific required fields
     if (formData.user_type === 'maid') {
@@ -666,6 +673,24 @@ const Register = () => {
                 <span>{errors.non_field_errors[0]}</span>
               </div>
             )}
+
+            <div className="flex items-start gap-2 text-sm text-gray-700">
+              <input
+                id="acceptedTerms"
+                name="acceptedTerms"
+                type="checkbox"
+                className="mt-1 h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+                checked={acceptedTerms}
+                onChange={(e) => setAcceptedTerms(e.target.checked)}
+              />
+              <label htmlFor="acceptedTerms" className="leading-tight">
+                I have read and agree to the{' '}
+                <Link to="/terms" target="_blank" className="text-primary-600 hover:text-primary-500 font-medium">
+                  MaidMatch Uganda Terms &amp; Conditions
+                </Link>
+                .
+              </label>
+            </div>
 
             <button
               type="submit"
