@@ -84,9 +84,14 @@ export const AuthProvider = ({ children }) => {
     try {
       const response = await authAPI.register(userData);
 
-      // Do not auto-login or persist tokens on registration.
-      // The app uses OTP-based login, so after creating an account the user
-      // must still go through the login flow to obtain an access token.
+      // Do not auto-login or set the user here. However, we do persist the
+      // access token so that follow-up API calls during registration (e.g.
+      // creating cleaning company or home nurse profiles) are authenticated.
+      const accessToken = response.data.access;
+      if (accessToken) {
+        localStorage.setItem('accessToken', accessToken);
+      }
+
       return { success: true, data: response.data };
     } catch (error) {
       return {

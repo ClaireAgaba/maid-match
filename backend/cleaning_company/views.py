@@ -59,7 +59,13 @@ class MyCleaningCompanyView(generics.RetrieveUpdateAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_object(self):
-        return CleaningCompany.objects.get(user=self.request.user)
+        try:
+            return CleaningCompany.objects.get(user=self.request.user)
+        except CleaningCompany.DoesNotExist:
+            # Let DRF translate this to a 404 response instead of a 500.
+            from django.http import Http404
+
+            raise Http404("Cleaning company profile not found for this user.")
 
     def get_serializer_class(self):
         if self.request.method in ("PATCH", "PUT"):
