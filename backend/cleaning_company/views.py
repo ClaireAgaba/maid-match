@@ -72,6 +72,37 @@ class MyCleaningCompanyView(generics.RetrieveUpdateAPIView):
         return ctx
 
 
+class MyCleaningCompanyLocationView(APIView):
+    """Update live GPS location for the current cleaning company.
+
+    Expects JSON body like {"current_latitude": 0.0, "current_longitude": 0.0}.
+    """
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        company = CleaningCompany.objects.filter(user=request.user).first()
+        if not company:
+            return Response(
+                {"detail": "Cleaning company profile not found for this user."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        lat = request.data.get("current_latitude")
+        lng = request.data.get("current_longitude")
+        if lat is None or lng is None:
+            return Response(
+                {"detail": "current_latitude and current_longitude are required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        company.current_latitude = lat
+        company.current_longitude = lng
+        company.save(update_fields=["current_latitude", "current_longitude"])
+
+        return Response({"status": "ok"})
+
+
 class PublicCompanyGalleryListView(generics.ListAPIView):
     """Public, read-only gallery for a given cleaning company.
 

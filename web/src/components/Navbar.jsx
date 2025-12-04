@@ -11,7 +11,7 @@ const Navbar = ({
     userProfile, // Passed from parent if available (e.g. maidProfile, homeownerProfile)
     toggleSidebar // For mobile sidebar if needed later
 }) => {
-    const { user, logout, isHomeowner, isMaid, isAdmin, isHomeNurse } = useAuth();
+    const { user, logout, isHomeowner, isMaid, isAdmin, isHomeNurse, isCleaningCompany } = useAuth();
     const navigate = useNavigate();
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const dropdownRef = useRef(null);
@@ -134,7 +134,21 @@ const Navbar = ({
                                     {/* Menu Items */}
                                     <div className="py-2">
                                         <button
-                                            onClick={() => navigate(isMaid ? '/profile-settings' : '/profile')}
+                                            onClick={() => {
+                                                if (isMaid) {
+                                                    navigate('/maid-profile-settings');
+                                                } else if (isHomeowner) {
+                                                    navigate('/homeowner-profile-settings');
+                                                } else if (isCleaningCompany) {
+                                                    navigate('/company/profile');
+                                                } else if (isHomeNurse) {
+                                                    navigate('/nurse/profile');
+                                                } else if (isAdmin) {
+                                                    navigate('/dashboard');
+                                                } else {
+                                                    navigate('/profile-settings');
+                                                }
+                                            }}
                                             className="w-full px-6 py-3 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3 transition-colors"
                                         >
                                             <Settings className="h-4 w-4 text-gray-400" />

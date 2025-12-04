@@ -83,14 +83,11 @@ export const AuthProvider = ({ children }) => {
   const register = async (userData) => {
     try {
       const response = await authAPI.register(userData);
-      const newUser = response.data.user;
-      const accessToken = response.data.access;
-      if (accessToken) {
-        localStorage.setItem('accessToken', accessToken);
-      }
-      setUser(newUser);
-      localStorage.setItem('user', JSON.stringify(newUser));
-      return { success: true, user: newUser };
+
+      // Do not auto-login or persist tokens on registration.
+      // The app uses OTP-based login, so after creating an account the user
+      // must still go through the login flow to obtain an access token.
+      return { success: true, data: response.data };
     } catch (error) {
       return {
         success: false,

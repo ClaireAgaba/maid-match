@@ -167,9 +167,12 @@ const Register = () => {
           if (formData.nurse_display_photo) nurseForm.append('display_photo', formData.nurse_display_photo);
           await homeNursingAPI.register(nurseForm);
         }
-        navigate('/dashboard');
+
+        // After successful registration + profile creation, send user to login
+        // so they can continue with the OTP-based login flow.
+        navigate('/login');
       } catch (e) {
-        // If profile creation fails, show error but keep user registered/logged in
+        // If profile creation fails, show error but keep user registered
         setErrors(e.response?.data || { non_field_errors: ['Failed to create profile'] });
       }
     } else {
