@@ -114,6 +114,7 @@ class UserRegistrationView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+@method_decorator(csrf_exempt, name='dispatch')
 class SendLoginPinView(APIView):
     permission_classes = [permissions.AllowAny]
 
@@ -139,6 +140,7 @@ class SendLoginPinView(APIView):
         return Response({"message": "Login code sent via WhatsApp"}, status=status.HTTP_200_OK)
 
 
+@method_decorator(csrf_exempt, name='dispatch')
 class UserLoginView(APIView):
     """
     API endpoint for user login
