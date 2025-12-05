@@ -151,7 +151,10 @@ class UserLoginView(APIView):
     """
     API endpoint for user login
     """
+    # Allow anonymous access and bypass JWT authentication entirely. Login is
+    # based only on phone number + one-time PIN, not on any existing token.
     permission_classes = [permissions.AllowAny]
+    authentication_classes = []
     
     def post(self, request):
         serializer = VerifyLoginPinSerializer(data=request.data)
