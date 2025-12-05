@@ -1,4 +1,8 @@
+from django.contrib.auth import get_user_model
 from rest_framework import permissions
+
+User = get_user_model()
+
 
 class IsAdminOrUserTypeAdmin(permissions.BasePermission):
     """Allow Django staff OR custom accounts.user_type == 'admin'"""
@@ -54,8 +58,21 @@ class NursingServiceCategoryGroupedList(APIView):
 class HomeNurseRegisterView(generics.CreateAPIView):
     queryset = HomeNurse.objects.all()
     serializer_class = HomeNurseCreateSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    # Allow registration immediately after account creation without requiring
+    # the JWT token to be attached. We link the HomeNurse profile to the
+    # underlying User by phone_number supplied in the request.
+    permission_classes = [permissions.AllowAny]
     parser_classes = [MultiPartParser, FormParser]
+
+    def get_serializer_context(self):
+        ctx = super().get_serializer_context()
+        phone = self.request.data.get("phone_number")
+        if phone:
+            try:
+                ctx["user"] = User.objects.get(phone_number=phone)
+            except User.DoesNotExist:
+                pass
+        return ctx
 
 
 class MyHomeNurseView(generics.RetrieveUpdateAPIView):

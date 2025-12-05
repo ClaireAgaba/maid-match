@@ -156,6 +156,11 @@ const Register = () => {
         } else if (formData.user_type === 'home_nurse') {
           await authAPI.getCsrfToken();
           const nurseForm = new FormData();
+          // Include phone_number so the backend can resolve the underlying
+          // User for this HomeNurse profile without relying on JWT auth.
+          if (formData.phone_number) {
+            nurseForm.append('phone_number', formData.phone_number);
+          }
           nurseForm.append('nursing_level', formData.nursing_level);
           if (formData.council_registration_number) nurseForm.append('council_registration_number', formData.council_registration_number);
           nurseForm.append('years_of_experience', String(Number(formData.years_of_experience) || 0));
