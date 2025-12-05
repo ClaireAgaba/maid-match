@@ -56,23 +56,18 @@ class NursingServiceCategoryGroupedList(APIView):
 
 
 class HomeNurseRegisterView(generics.CreateAPIView):
+    """Create a HomeNurse profile for the current authenticated user.
+
+    This mirrors CleaningCompanyRegisterView: the SPA first creates the
+    underlying User via /accounts/register/, which returns a JWT token. The
+    frontend then calls this endpoint with that token attached, and we link
+    the HomeNurse profile to request.user.
+    """
+
     queryset = HomeNurse.objects.all()
     serializer_class = HomeNurseCreateSerializer
-    # Allow registration immediately after account creation without requiring
-    # the JWT token to be attached. We link the HomeNurse profile to the
-    # underlying User by phone_number supplied in the request.
-    permission_classes = [permissions.AllowAny]
+    permission_classes = [permissions.IsAuthenticated]
     parser_classes = [MultiPartParser, FormParser]
-
-    def get_serializer_context(self):
-        ctx = super().get_serializer_context()
-        phone = self.request.data.get("phone_number")
-        if phone:
-            try:
-                ctx["user"] = User.objects.get(phone_number=phone)
-            except User.DoesNotExist:
-                pass
-        return ctx
 
 
 class MyHomeNurseView(generics.RetrieveUpdateAPIView):
