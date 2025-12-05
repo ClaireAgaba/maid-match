@@ -71,24 +71,38 @@ class UserRegistrationView(APIView):
     def post(self, request):
         serializer = UserRegistrationSerializer(data=request.data)
         if serializer.is_valid():
+            # Enforce age restriction BEFORE creating the user so that
+            # underage maid / home nurse accounts are never persisted.
+            from datetime import date
+            user_type = serializer.validated_data.get('user_type')
+
+            # For maids we expect `date_of_birth` in the payload. For home
+            # nurses we also accept `date_of_birth` (mirroring the maid
+            # field) but some clients may send `nurse_date_of_birth`, so we
+            # fall back to that key as well.
+            dob_str = None
+            if user_type == 'maid':
+                dob_str = request.data.get('date_of_birth')
+            elif user_type == 'home_nurse':
+                dob_str = request.data.get('date_of_birth') or request.data.get('nurse_date_of_birth')
+
+            if user_type in ['maid', 'home_nurse'] and dob_str:
+                try:
+                    dob = date.fromisoformat(dob_str)
+                    today = date.today()
+                    age = today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
+                    if age < 18:
+                        return Response({
+                            'date_of_birth': ['You must be at least 18 years old to register for this role.']
+                        }, status=status.HTTP_400_BAD_REQUEST)
+                except ValueError:
+                    pass
+
             user = serializer.save()
             
             # Create profile based on user type
             if user.user_type == 'maid':
                 # Get maid biodata from request
-                from datetime import date
-                dob_str = request.data.get('date_of_birth')
-                if dob_str:
-                    try:
-                        dob = date.fromisoformat(dob_str)
-                        today = date.today()
-                        age = today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
-                        if age < 18:
-                            return Response({
-                                'date_of_birth': ['Maids must be at least 18 years old.']
-                            }, status=status.HTTP_400_BAD_REQUEST)
-                    except ValueError:
-                        pass
                 profile_data = {
                     'user': user,
                     'full_name': request.data.get('full_name', ''),

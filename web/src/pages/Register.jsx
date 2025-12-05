@@ -173,6 +173,13 @@ const Register = () => {
       });
       if (formData.profile_photo) submitData.append('profile_photo', formData.profile_photo);
     }
+    if (formData.user_type === 'home_nurse') {
+      // Pass nurse DOB to the accounts/register endpoint so the backend can
+      // enforce the 18+ rule before creating the user record.
+      if (formData.nurse_date_of_birth) {
+        submitData.append('date_of_birth', formData.nurse_date_of_birth);
+      }
+    }
     if (formData.user_type === 'homeowner') {
       ['home_address', 'home_type', 'number_of_rooms'].forEach((k) => {
         const v = formData[k];
