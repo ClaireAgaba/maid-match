@@ -49,9 +49,7 @@ class HomeNurseCreateSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         services = validated_data.pop("services", [])
-        # Link the HomeNurse profile directly to the authenticated user
-        # provided by the view (HomeNurseRegisterView requires IsAuthenticated).
-        user = self.context["request"].user
+        user = validated_data.pop("user")
         instance = HomeNurse.objects.create(user=user, **validated_data)
         instance.services.set(services)
         return instance

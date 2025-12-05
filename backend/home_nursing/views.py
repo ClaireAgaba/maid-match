@@ -1,7 +1,6 @@
 from django.contrib.auth import get_user_model
 from rest_framework import permissions
-
-User = get_user_model()
+from rest_framework.exceptions import ValidationError
 
 
 class IsAdminOrUserTypeAdmin(permissions.BasePermission):
@@ -56,18 +55,31 @@ class NursingServiceCategoryGroupedList(APIView):
 
 
 class HomeNurseRegisterView(generics.CreateAPIView):
-    """Create a HomeNurse profile for the current authenticated user.
+    """Create a HomeNurse profile for a given phone_number.
 
-    This mirrors CleaningCompanyRegisterView: the SPA first creates the
-    underlying User via /accounts/register/, which returns a JWT token. The
-    frontend then calls this endpoint with that token attached, and we link
-    the HomeNurse profile to request.user.
+    We do not require JWT auth here (similar to the earlier flow) so that
+    nurse profile creation during registration works reliably from the mobile
+    app. Instead, we resolve the User by phone_number and attach it when
+    saving the serializer.
     """
 
     queryset = HomeNurse.objects.all()
     serializer_class = HomeNurseCreateSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.AllowAny]
+    authentication_classes = []
     parser_classes = [MultiPartParser, FormParser]
+
+    def perform_create(self, serializer):
+        phone = self.request.data.get("phone_number")
+        if not phone:
+            raise ValidationError({"phone_number": ["phone_number is required."]})
+
+        try:
+            user = User.objects.get(phone_number=phone, user_type="home_nurse")
+        except User.DoesNotExist:
+            raise ValidationError({"phone_number": ["No home nurse user found with this phone number."]})
+
+        serializer.save(user=user)
 
 
 class MyHomeNurseView(generics.RetrieveUpdateAPIView):
