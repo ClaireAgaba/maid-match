@@ -76,6 +76,19 @@ class UserRegistrationView(APIView):
             # Create profile based on user type
             if user.user_type == 'maid':
                 # Get maid biodata from request
+                from datetime import date
+                dob_str = request.data.get('date_of_birth')
+                if dob_str:
+                    try:
+                        dob = date.fromisoformat(dob_str)
+                        today = date.today()
+                        age = today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
+                        if age < 18:
+                            return Response({
+                                'date_of_birth': ['Maids must be at least 18 years old.']
+                            }, status=status.HTTP_400_BAD_REQUEST)
+                    except ValueError:
+                        pass
                 profile_data = {
                     'user': user,
                     'full_name': request.data.get('full_name', ''),

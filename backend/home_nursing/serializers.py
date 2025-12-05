@@ -34,6 +34,19 @@ class HomeNurseCreateSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Select at least one nursing service category.")
         return value
 
+    def validate_date_of_birth(self, value):
+        """Ensure nurse is at least 18 years old."""
+        from datetime import date
+
+        if not value:
+            return value
+
+        today = date.today()
+        age = today.year - value.year - ((today.month, today.day) < (value.month, value.day))
+        if age < 18:
+            raise serializers.ValidationError("Home nurses must be at least 18 years old.")
+        return value
+
     def create(self, validated_data):
         services = validated_data.pop("services", [])
         # Prefer an explicit user passed in the serializer context (e.g. looked

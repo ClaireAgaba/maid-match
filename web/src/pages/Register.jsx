@@ -52,6 +52,15 @@ const Register = () => {
   const [nursingCategories, setNursingCategories] = useState(null);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
 
+  const getAdultMaxDate = () => {
+    const today = new Date();
+    today.setFullYear(today.getFullYear() - 18);
+    const y = today.getFullYear();
+    const m = String(today.getMonth() + 1).padStart(2, '0');
+    const d = String(today.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  };
+
   // Fetch grouped categories when corresponding role is selected
   useEffect(() => {
     const fetchCleaning = async () => {
@@ -102,6 +111,37 @@ const Register = () => {
       setErrors({ non_field_errors: ['You must agree to the MaidMatch Terms & Conditions before creating an account.'] });
       setLoading(false);
       return;
+    }
+
+    // Enforce 18+ age for maids and home nurses on the client side
+    const computeAge = (isoDate) => {
+      if (!isoDate) return null;
+      const dob = new Date(isoDate);
+      const today = new Date();
+      let age = today.getFullYear() - dob.getFullYear();
+      const m = today.getMonth() - dob.getMonth();
+      if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) {
+        age--;
+      }
+      return age;
+    };
+
+    if (formData.user_type === 'maid') {
+      const age = computeAge(formData.date_of_birth);
+      if (age !== null && age < 18) {
+        setErrors({ non_field_errors: ['Maids must be at least 18 years old.'] });
+        setLoading(false);
+        return;
+      }
+    }
+
+    if (formData.user_type === 'home_nurse') {
+      const age = computeAge(formData.nurse_date_of_birth);
+      if (age !== null && age < 18) {
+        setErrors({ non_field_errors: ['Home nurses must be at least 18 years old.'] });
+        setLoading(false);
+        return;
+      }
     }
 
     // Validate maid-specific required fields
@@ -362,6 +402,7 @@ const Register = () => {
                     name="date_of_birth"
                     type="date"
                     required
+                    max={getAdultMaxDate()}
                     className="input-field"
                     value={formData.date_of_birth}
                     onChange={handleChange}
@@ -512,6 +553,7 @@ const Register = () => {
                   <input
                     name="nurse_date_of_birth"
                     type="date"
+                    max={getAdultMaxDate()}
                     className="input-field"
                     value={formData.nurse_date_of_birth}
                     onChange={handleChange}
