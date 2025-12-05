@@ -50,14 +50,9 @@ def send_whatsapp_message(phone_number, message):
 
 @method_decorator(ensure_csrf_cookie, name='dispatch')
 class GetCSRFToken(APIView):
-    """
-    API endpoint to get CSRF token
-    """
-    # Allow anonymous access and bypass JWT authentication entirely. Login is
-    # based on phone number + one-time PIN, not on an existing token.
+    """API endpoint to get CSRF token"""
     permission_classes = [permissions.AllowAny]
-    authentication_classes = []
-    
+
     def get(self, request):
         return Response({'detail': 'CSRF cookie set'})
 
@@ -67,7 +62,8 @@ class UserRegistrationView(APIView):
     API endpoint for user registration
     """
     permission_classes = [permissions.AllowAny]
-    
+    authentication_classes = []
+
     def post(self, request):
         serializer = UserRegistrationSerializer(data=request.data)
         if serializer.is_valid():

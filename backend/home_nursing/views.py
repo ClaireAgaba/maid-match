@@ -2,6 +2,8 @@ from django.contrib.auth import get_user_model
 from rest_framework import permissions
 from rest_framework.exceptions import ValidationError
 
+User = get_user_model()
+
 
 class IsAdminOrUserTypeAdmin(permissions.BasePermission):
     """Allow Django staff OR custom accounts.user_type == 'admin'"""
@@ -37,6 +39,7 @@ class HomeNursingPingView(APIView):
 
 class NursingServiceCategoryGroupedList(APIView):
     permission_classes = [permissions.AllowAny]
+    authentication_classes = []
 
     def get(self, request):
         groups = (
