@@ -53,7 +53,10 @@ class GetCSRFToken(APIView):
     """
     API endpoint to get CSRF token
     """
+    # Allow anonymous access and bypass JWT authentication entirely. Login is
+    # based on phone number + one-time PIN, not on an existing token.
     permission_classes = [permissions.AllowAny]
+    authentication_classes = []
     
     def get(self, request):
         return Response({'detail': 'CSRF cookie set'})
@@ -116,7 +119,10 @@ class UserRegistrationView(APIView):
 
 @method_decorator(csrf_exempt, name='dispatch')
 class SendLoginPinView(APIView):
+    # Allow anonymous access and bypass JWT authentication entirely. We rely
+    # only on the submitted phone number for this endpoint.
     permission_classes = [permissions.AllowAny]
+    authentication_classes = []
 
     def post(self, request):
         serializer = SendLoginPinSerializer(data=request.data)
