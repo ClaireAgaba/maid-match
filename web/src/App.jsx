@@ -4,6 +4,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Terms from './pages/Terms';
+import SetPassword from './pages/SetPassword';
 import Dashboard from './pages/Dashboard';
 import ProfileSettings from './pages/ProfileSettings';
 import MaidProfileSettings from './pages/MaidProfileSettings';
@@ -31,6 +32,14 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/terms" element={<Terms />} />
+          <Route
+            path="/set-password"
+            element={
+              <ProtectedRoute>
+                <SetPassword />
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="/dashboard"
             element={

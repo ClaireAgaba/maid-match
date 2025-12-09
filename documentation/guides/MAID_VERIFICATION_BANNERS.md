@@ -345,24 +345,69 @@ Reason: [Admin's reason]
 2. ✅ Provide clear actions
 3. ✅ Explain reasons
 4. ✅ Use color coding
-5. ✅ Make it actionable
 
 ---
 
-## 🚀 **Future Enhancements**
+## **Future Enhancements**
 
 ### **Possible Additions:**
-- 📧 **Email Notifications** - When status changes
-- 📊 **Progress Bar** - Show verification progress
-- 📝 **Checklist** - Required documents checklist
-- ⏰ **Timeline** - Estimated verification time
-- 💬 **Chat Support** - Direct support link
-- 📱 **Push Notifications** - Mobile alerts
+- **Email Notifications** - When status changes
+- **Progress Bar** - Show verification progress
+- **Checklist** - Required documents checklist
+- **Timeline** - Estimated verification time
+- **Chat Support** - Direct support link
+- **Push Notifications** - Mobile alerts
 
 ---
 
-**Verification status banners are now live on maid dashboard!** 🎉
+## **Maid Onboarding Payment (Pesapal Mobile Money)**
 
-**Maids can clearly see their verification status!** ✅
+### **Overview**
+- Added a one-time **onboarding payment** for maids, collected via **Pesapal Mobile Money** (MTN / Airtel).
+- Amount: **UGX 5,000**.
+- Purpose: helps cover verification and onboarding processing.
 
-**Color-coded banners with actionable next steps!** 🎨
+### **Where it appears (Maid Dashboard)**
+- New **"Onboarding Payment"** card in the maid dashboard stats section:
+  - Shows **"Not paid"** / **"Paid (UGX 5,000)"**.
+  - If not paid, shows helper text: *"Pay a one-time onboarding fee of UGX 5,000 to help us verify your account."*
+- A **"Pay UGX 5,000"** button opens a payment modal.
+
+### **Payment Flow (Maid)**
+1. Maid opens dashboard and sees **Onboarding Payment: Not paid**.
+2. Clicks **"Pay UGX 5,000"**.
+3. Modal appears:
+   - Select **Network**: MTN Mobile Money / Airtel Money.
+   - Enter **Mobile Money number** they are paying from.
+4. On submit, the app:
+   - Calls backend `POST /api/payments/maid-onboarding/initiate/`.
+   - Backend creates a `MobileMoneyTransaction` and calls **Pesapal SubmitOrderRequest**.
+   - Backend returns status + a **Pesapal `redirect_url`**.
+5. Frontend automatically opens **Pesapal checkout in a new tab** using `redirect_url`.
+6. On Pesapal page, maid selects provider and confirms payment.
+7. MTN/Airtel sends a **Mobile Money PIN prompt** to the maid’s phone.
+8. Once payment completes, Pesapal sends an **IPN callback** to `/api/payments/pesapal/ipn/`.
+9. Backend verifies status with **GetTransactionStatus** and, if successful:
+   - Marks `onboarding_fee_paid = True` and sets `onboarding_fee_paid_at` on `MaidProfile`.
+   - Updates `MobileMoneyTransaction.status` to **successful**.
+
+### **Fees & Accounting**
+- Pesapal charges a **transaction fee** on each payment (visible in the Pesapal dashboard).
+- Maid pays **UGX 5,000**; the net amount you receive is **UGX 5,000 minus Pesapal fees**.
+- All transactions (including fees) are visible under **Pesapal → Transactions history**.
+
+### **Technical Notes**
+- Backend:
+  - Model: `payments.models.MobileMoneyTransaction` (linked to `MaidProfile`).
+  - Views: `MaidOnboardingInitiateView`, `PesapalIPNView`.
+  - Uses **live Pesapal API v3** endpoints for Auth, SubmitOrderRequest, and GetTransactionStatus.
+- Frontend:
+  - Dashboard modal implemented in `web/src/pages/Dashboard.jsx`.
+  - API helper: `paymentAPI.initiateMaidOnboarding` in `web/src/services/api.js`.
+  - Automatically calls `window.open(redirect_url, '_blank')` on success.
+
+---
+
+**Verification status banners and onboarding payment are now fully wired to maid accounts.** 
+**Maids can clearly see their status, pay their onboarding fee, and get verified.** 
+**Payments are processed via Pesapal Mobile Money with full transaction history.** 

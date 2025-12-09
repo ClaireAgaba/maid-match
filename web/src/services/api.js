@@ -56,6 +56,7 @@ export const authAPI = {
   getCurrentUser: () => api.get('/accounts/users/me/'),
   updateUser: (data) => api.patch('/accounts/users/me/', data),
   changePassword: (passwords) => api.post('/accounts/users/change_password/', passwords),
+  setInitialPassword: (passwords) => api.post('/accounts/users/set_initial_password/', passwords),
 };
 
 // Maid API
@@ -148,6 +149,12 @@ export const homeNursingAPI = {
   adminEnable: (id) => api.post(`/home-nursing/admin/nurses/${id}/enable/`),
   adminDisable: (id) => api.post(`/home-nursing/admin/nurses/${id}/disable/`),
   browse: (params) => api.get('/home-nursing/public/browse/', { params }),
+};
+
+// Payments API
+export const paymentAPI = {
+  initiateMaidOnboarding: (payload) => api.post('/payments/maid-onboarding/initiate/', payload),
+  initiateHomeownerPayment: (payload) => api.post('/payments/homeowner/initiate/', payload),
 };
 
 // Live Location API

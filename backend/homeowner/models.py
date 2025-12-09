@@ -32,6 +32,36 @@ class HomeownerProfile(models.Model):
     is_verified = models.BooleanField(default=False, help_text="Account verified by admin")
     is_active = models.BooleanField(default=True, help_text="Account active status. Can be deactivated by admin if needed.")
     verification_notes = models.TextField(blank=True, null=True, help_text="Admin notes on verification status")
+
+    # Payments / access
+    has_live_in_credit = models.BooleanField(
+        default=False,
+        help_text="Whether homeowner has an unused paid live-in placement credit (Plan A)",
+    )
+    live_in_credit_awarded_at = models.DateTimeField(
+        blank=True,
+        null=True,
+        help_text="When the current live-in credit was last purchased",
+    )
+    SUB_NONE = "none"
+    SUB_MONTHLY = "monthly"
+    SUB_DAY_PASS = "day_pass"
+    SUB_CHOICES = (
+        (SUB_NONE, "No active subscription"),
+        (SUB_MONTHLY, "Monthly subscription"),
+        (SUB_DAY_PASS, "24 hour pass"),
+    )
+    subscription_type = models.CharField(
+        max_length=20,
+        choices=SUB_CHOICES,
+        default=SUB_NONE,
+        help_text="Current homeowner subscription plan type (Plan B/C)",
+    )
+    subscription_expires_at = models.DateTimeField(
+        blank=True,
+        null=True,
+        help_text="When the current subscription (monthly/day pass) expires",
+    )
     
     # Documents
     id_document = models.FileField(upload_to='homeowner_documents/ids/', blank=True, null=True, help_text="Upload a copy of government-issued ID")

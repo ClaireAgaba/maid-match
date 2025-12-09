@@ -4,11 +4,12 @@ import { useAuth } from '../context/AuthContext';
 import BrandLogo from '../components/BrandLogo';
 import Navbar from '../components/Navbar';
 import { useLiveLocationUpdater } from '../hooks/useLiveLocationUpdater';
-import { maidAPI, homeownerAPI, authAPI, reviewAPI, cleaningCompanyAPI, homeNursingAPI, jobAPI, applicationAPI } from '../services/api';
-import {
+import { maidAPI, homeownerAPI, authAPI, reviewAPI, cleaningCompanyAPI, homeNursingAPI, jobAPI, applicationAPI, paymentAPI } from '../services/api';
+import { 
   Briefcase, Users, Star, Settings, LogOut,
   Home, Calendar, DollarSign, TrendingUp, User,
-  Shield, ShieldCheck, Ban, CircleOff, Eye
+  Shield, ShieldCheck, Ban, CircleOff, Eye,
+  CreditCard
 } from 'lucide-react';
 
 const Dashboard = () => {
@@ -92,6 +93,12 @@ const Dashboard = () => {
     service_target: 'maid',
   });
   const [submittingService, setSubmittingService] = useState(false);
+
+  const [showOnboardingPaymentModal, setShowOnboardingPaymentModal] = useState(false);
+  const [onboardingNetwork, setOnboardingNetwork] = useState('mtn');
+  const [onboardingPhone, setOnboardingPhone] = useState('');
+  const [onboardingSubmitting, setOnboardingSubmitting] = useState(false);
+  const [onboardingMessage, setOnboardingMessage] = useState('');
 
   const { status: liveLocationStatus, coords: liveLocationCoords, placeName: liveLocationPlace } = useLiveLocationUpdater(user);
   const liveLocationLabel = (() => {
@@ -687,6 +694,96 @@ const Dashboard = () => {
           </div>
         )}
 
+        {isMaid && showOnboardingPaymentModal && (
+          <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 px-4">
+            <div className="bg-white rounded-2xl shadow-xl max-w-md w-full">
+              <div className="flex items-center justify-between px-5 py-4 border-b">
+                <h3 className="text-lg font-semibold text-gray-900">Pay Onboarding Fee</h3>
+                <button
+                  type="button"
+                  className="text-gray-400 hover:text-gray-600"
+                  onClick={() => {
+                    setShowOnboardingPaymentModal(false);
+                    setOnboardingMessage('');
+                  }}
+                >
+                  ✕
+                </button>
+              </div>
+              <div className="px-5 py-4 space-y-4">
+                <p className="text-sm text-gray-600">
+                  Pay a one-time onboarding fee of <span className="font-semibold">UGX 5,000</span> via Mobile Money.
+                </p>
+                {onboardingMessage && (
+                  <p className="text-sm text-gray-700 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
+                    {onboardingMessage}
+                  </p>
+                )}
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Network</label>
+                    <select
+                      className="input-field text-sm"
+                      value={onboardingNetwork}
+                      onChange={(e) => setOnboardingNetwork(e.target.value)}
+                    >
+                      <option value="mtn">MTN Mobile Money</option>
+                      <option value="airtel">Airtel Money</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Mobile Money number</label>
+                    <input
+                      type="tel"
+                      className="input-field text-sm"
+                      value={onboardingPhone}
+                      onChange={(e) => setOnboardingPhone(e.target.value)}
+                      placeholder="e.g. 0771234567"
+                    />
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  disabled={onboardingSubmitting}
+                  className="w-full btn-primary text-sm flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed mt-2"
+                  onClick={async () => {
+                    if (!onboardingPhone.trim()) {
+                      setOnboardingMessage('Please enter the mobile number you are paying from.');
+                      return;
+                    }
+                    setOnboardingSubmitting(true);
+                    setOnboardingMessage('');
+                    try {
+                      const res = await paymentAPI.initiateMaidOnboarding({
+                        network: onboardingNetwork,
+                        phone_number: onboardingPhone.trim(),
+                      });
+                      const msg = res.data?.message || 'We have sent your payment request to Pesapal. Follow the Pesapal page to complete payment.';
+                      setOnboardingMessage(msg);
+                      const redirectUrl = res.data?.redirect_url;
+                      if (redirectUrl) {
+                        // Open Pesapal checkout in a new tab so the user can complete the Mobile Money flow
+                        window.open(redirectUrl, '_blank', 'noopener,noreferrer');
+                      }
+                    } catch (err) {
+                      const data = err.response?.data;
+                      const msg = data?.error || data?.detail || 'Failed to start payment. Please try again.';
+                      setOnboardingMessage(msg);
+                    } finally {
+                      setOnboardingSubmitting(false);
+                    }
+                  }}
+                >
+                  {onboardingSubmitting ? 'Starting payment...' : 'Pay UGX 5,000'}
+                </button>
+                <p className="text-[11px] text-gray-500 mt-1">
+                  You will receive a Mobile Money prompt on your phone to enter your PIN. MaidMatch does not see or store your PIN.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Cleaning Company: Browse Jobs modal (view cleaning-company-targeted homeowner jobs) */}
         {user?.user_type === 'cleaning_company' && showCompanyJobsModal && (
           <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 px-4">
@@ -1064,340 +1161,11 @@ const Dashboard = () => {
                 })}
               </div>
             ) : (
-              <p className="text-sm text-gray-600">No services added.</p>
+              <p className="text-sm text-gray-600">No services listed yet.</p>
             )}
           </div>
         )}
 
-        {/* Home Nurse: Profile row */}
-        {isHomeNurse && (
-          <div className="card mb-8">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-6 space-y-4 sm:space-y-0">
-              <div className="relative flex-shrink-0">
-                <div className="h-24 w-24 rounded-full overflow-hidden border-4 border-gray-200 shadow-lg">
-                  {nurseProfile?.display_photo ? (
-                    <img src={nurseProfile.display_photo.startsWith('http') ? nurseProfile.display_photo : `http://localhost:8000${nurseProfile.display_photo}`}
-                      alt={nurseProfile.username || 'nurse'} className="h-full w-full object-cover" />
-                  ) : (
-                    <div className="h-full w-full bg-gradient-to-br from-pink-400 to-purple-600 flex items-center justify-center">
-                      <User className="h-12 w-12 text-white" />
-                    </div>
-                  )}
-                </div>
-              </div>
-              <div className="flex-1">
-                <h3 className="text-xl sm:text-2xl font-bold text-gray-900">
-                  {nurseProfile?.username || user?.username}
-                  {(nurseProfile?.gender || typeof nurseProfile?.age === 'number') && (
-                    <span className="ml-2 text-sm font-normal text-gray-600">
-                      {nurseProfile?.gender && (
-                        <>
-                          {nurseProfile.gender.charAt(0).toUpperCase() + nurseProfile.gender.slice(1)}
-                          {typeof nurseProfile?.age === 'number' ? ' • ' : ''}
-                        </>
-                      )}
-                      {typeof nurseProfile?.age === 'number' && `${nurseProfile.age} yrs`}
-                    </span>
-                  )}
-                </h3>
-                <div className="flex flex-wrap items-center gap-2 mt-1">
-                  <p className="text-gray-600">{nurseProfile?.location || 'Location not set'}</p>
-                  {/* Availability badge (fallback to emergency_availability) */}
-                  {typeof nurseProfile?.emergency_availability !== 'undefined' && (
-                    <span className={`px-2 py-0.5 rounded-full text-xs ${nurseProfile.emergency_availability ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
-                      {nurseProfile.emergency_availability ? 'Available' : 'Unavailable'}
-                    </span>
-                  )}
-                  {/* Verification badge: show only if backend provides is_verified; else default Not Verified visually subtle */}
-                  <span className={`px-2 py-0.5 rounded-full text-xs ${nurseProfile?.is_verified ? 'bg-blue-100 text-blue-800' : 'bg-yellow-100 text-yellow-800'}`}>
-                    {nurseProfile?.is_verified ? 'Verified' : 'Not Verified'}
-                  </span>
-                </div>
-              </div>
-              <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-                <button className="btn-secondary flex items-center justify-center w-full sm:w-auto" onClick={() => navigate('/nurse/profile')}>
-                  <Eye className="h-4 w-4 mr-2" />
-                  View Profile
-                </button>
-                <button className="btn-secondary flex items-center justify-center w-full sm:w-auto" onClick={() => navigate('/nurse/profile/edit')}>
-                  <Settings className="h-4 w-4 mr-2" />
-                  Edit Profile
-                </button>
-                {/* Availability quick toggle uses emergency_availability as availability */}
-                <button
-                  className={`btn-secondary flex items-center justify-center w-full sm:w-auto ${savingAvailability ? 'opacity-60 cursor-not-allowed' : ''}`}
-                  disabled={savingAvailability}
-                  onClick={async () => {
-                    try {
-                      setSavingAvailability(true);
-                      const next = !nurseProfile?.emergency_availability;
-                      const fd = new FormData();
-                      fd.append('emergency_availability', next ? 'true' : 'false');
-                      await homeNursingAPI.updateMe(fd);
-                      // locally update to feel instant
-                      setNurseProfile((prev) => ({ ...(prev || {}), emergency_availability: next }));
-                    } catch (e) {
-                      console.error('Failed to update availability', e);
-                    } finally {
-                      setSavingAvailability(false);
-                    }
-                  }}
-                >
-                  {nurseProfile?.emergency_availability ? 'Set Unavailable' : 'Set Available'}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Home Nurse: Services row */}
-        {isHomeNurse && (
-          <div className="card mb-8">
-            <h3 className="text-xl font-semibold text-gray-900 mb-3">Services Offered</h3>
-            {Array.isArray(nurseProfile?.services) && nurseProfile.services.length > 0 ? (
-              <div className="flex flex-wrap gap-2">
-                {nurseProfile.services.map((svc) => {
-                  const rate = nurseServiceRates[svc.name];
-                  return (
-                    <span key={svc.id} className="px-3 py-1 bg-gray-100 text-gray-800 rounded-full text-sm">
-                      {svc.name}
-                      {rate ? ` (Starting Service fee: ${rate})` : ''}
-                    </span>
-                  );
-                })}
-              </div>
-            ) : (
-              <p className="text-sm text-gray-600">No services added.</p>
-            )}
-          </div>
-        )}
-
-        {/* Cleaning Company: Gallery row */}
-        {user?.user_type === 'cleaning_company' && (
-          <div className="card mb-8">
-            <h3 className="text-xl font-semibold text-gray-900 mb-3">Our Works</h3>
-            {/* Upload form */}
-            <form
-              className="flex flex-col sm:flex-row gap-2 mb-4"
-              onSubmit={async (e) => {
-                e.preventDefault();
-                const fileInput = e.currentTarget.querySelector('input[name="gallery_image"]');
-                const captionInput = e.currentTarget.querySelector('input[name="gallery_caption"]');
-                if (!fileInput.files[0]) return;
-                setGalleryUploading(true);
-                try {
-                  const file = fileInput.files[0];
-                  const reader = new FileReader();
-                  reader.onload = () => {
-                    const dataUrl = reader.result; // base64 data URL
-                    const newItem = {
-                      id: `local-${Date.now()}`,
-                      image_url: dataUrl,
-                      caption: captionInput.value || '',
-                      _local: true,
-                    };
-                    const next = [newItem, ...companyGallery];
-                    setCompanyGallery(next);
-                    if (localGalleryKey) localStorage.setItem(localGalleryKey, JSON.stringify(next));
-                    fileInput.value = '';
-                    captionInput.value = '';
-                    setGalleryUploading(false);
-                  };
-                  reader.onerror = (e) => {
-                    console.error('File read error', e);
-                    setGalleryUploading(false);
-                    alert('Failed to read file');
-                  };
-                  reader.readAsDataURL(file);
-                  return; // early return; we'll unset uploading in onload/onerror
-                } catch (err) {
-                  console.error('Gallery upload failed', err?.response || err);
-                  alert('Failed to upload image');
-                } finally {
-                  // no-op; handled in reader callbacks
-                }
-              }}
-            >
-              <input name="gallery_image" type="file" accept="image/*" className="input-field" />
-              <input name="gallery_caption" type="text" className="input-field" placeholder="Caption (optional)" />
-              <button disabled={galleryUploading} className="btn-primary">{galleryUploading ? 'Uploading...' : 'Add your work'}</button>
-            </form>
-
-            {companyGallery && companyGallery.length > 0 ? (
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {companyGallery.map((item, idx) => (
-                  <div key={item.id} className="relative">
-                    <img
-                      src={item.image_url || item.image}
-                      alt={item.caption || 'work'}
-                      className="w-full h-40 object-cover rounded cursor-pointer"
-                      onClick={() => { setViewerIndex(idx); setViewerOpen(true); }}
-                    />
-                    {editingCaptionId === item.id ? (
-                      <div className="mt-1 flex items-center gap-2">
-                        <input
-                          className="input-field"
-                          value={editingCaptionText}
-                          onChange={(e) => setEditingCaptionText(e.target.value)}
-                        />
-                        <button
-                          className="btn-primary"
-                          onClick={async () => {
-                            try {
-                              let next = companyGallery.map((g) => g.id === item.id ? { ...g, caption: editingCaptionText } : g);
-                              setCompanyGallery(next);
-                              if (localGalleryKey) localStorage.setItem(localGalleryKey, JSON.stringify(next));
-                              setEditingCaptionId(null);
-                              setEditingCaptionText('');
-                            } catch (e) { alert('Failed to save'); }
-                          }}
-                        >Save</button>
-                        <button className="btn-secondary" onClick={() => { setEditingCaptionId(null); setEditingCaptionText(''); }}>Cancel</button>
-                      </div>
-                    ) : (
-                      <div className="mt-1 flex items-center justify-between gap-2">
-                        <div className="text-xs text-gray-600 truncate">{item.caption || 'No caption'}</div>
-                        <div className="flex gap-2">
-                          <button
-                            className="text-xs px-2 py-1 rounded border border-gray-300 hover:bg-gray-50"
-                            onClick={() => { setEditingCaptionId(item.id); setEditingCaptionText(item.caption || ''); }}
-                          >Edit</button>
-                          <button
-                            className="text-xs px-2 py-1 rounded border border-red-300 text-red-600 hover:bg-red-50"
-                            onClick={async () => {
-                              if (!confirm('Delete this image?')) return;
-                              try {
-                                const next = companyGallery.filter((g) => g.id !== item.id);
-                                setCompanyGallery(next);
-                                if (localGalleryKey) localStorage.setItem(localGalleryKey, JSON.stringify(next));
-                              } catch (e) { alert('Failed to delete'); }
-                            }}
-                          >Delete</button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-sm text-gray-600">No gallery items yet.</p>
-            )}
-          </div>
-        )}
-
-        {/* Maid Profile Card */}
-        {isMaid && maidProfile && (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mb-8 transition-all hover:shadow-md">
-            <div className="bg-gradient-to-r from-primary-50 to-secondary-50 px-6 py-4 border-b border-gray-100 flex justify-between items-center">
-              <h3 className="text-lg font-semibold text-gray-800">My Profile</h3>
-              <button
-                onClick={async () => {
-                  try {
-                    const newStatus = !maidProfile.availability_status;
-                    await maidAPI.updateMyProfile({ availability_status: newStatus });
-                    setMaidProfile({ ...maidProfile, availability_status: newStatus });
-                  } catch (error) { console.error(error); }
-                }}
-                className={`px-3 py-1 rounded-full text-xs font-medium transition-colors cursor-pointer ${maidProfile.availability_status ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-red-100 text-red-700 hover:bg-red-200'
-                  }`}
-              >
-                {maidProfile.availability_status ? '● Available' : '● Unavailable'}
-              </button>
-            </div>
-            <div className="p-6">
-              <div className="flex flex-col sm:flex-row gap-6 items-start">
-                <div className="relative flex-shrink-0">
-                  <div className="h-24 w-24 sm:h-28 sm:w-28 rounded-2xl overflow-hidden border-4 border-white shadow-lg bg-gray-100">
-                    {maidProfile.profile_photo ? (
-                      <img
-                        src={maidProfile.profile_photo}
-                        alt={maidProfile.full_name}
-                        className="h-full w-full object-cover"
-                      />
-                    ) : (
-                      <div className="h-full w-full flex items-center justify-center text-gray-400 bg-gray-50">
-                        <User className="h-10 w-10" />
-                      </div>
-                    )}
-                  </div>
-                </div>
-                <div className="flex-1 w-full">
-                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
-                    <div>
-                      <h2 className="text-2xl font-bold text-gray-900">{maidProfile.full_name || user?.username}</h2>
-                      <div className="flex flex-wrap items-center gap-2 mt-1 text-sm text-gray-500">
-                        <span className="inline-flex items-center gap-1">
-                          <Briefcase className="h-4 w-4" />
-                          {maidProfile.category === 'live_in' ? 'Live-in Maid' : maidProfile.category === 'placement' ? 'Domestic Staff Placement' : 'Temporary Maid'}
-                        </span>
-                        {maidProfile.experience_years > 0 && (
-                          <span>• {maidProfile.experience_years} years exp.</span>
-                        )}
-                        {maidProfile.user?.gender && (
-                          <span>• {maidProfile.user.gender}</span>
-                        )}
-                        {typeof maidAge === 'number' && maidAge > 0 && (
-                          <span>• {maidAge} yrs</span>
-                        )}
-                        {maidProfile.is_verified && (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-green-100 text-green-700 text-xs font-medium">
-                            <ShieldCheck className="h-3.5 w-3.5" />
-                            Verified Account
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex gap-2">
-                      <button onClick={() => navigate('/my-profile')} className="btn-secondary text-sm py-2 px-4">View Public Profile</button>
-                      <button onClick={() => navigate('/profile-settings')} className="btn-primary text-sm py-2 px-4">Edit Profile</button>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-1 gap-4 bg-gray-50/50 rounded-xl p-4 border border-gray-100">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 bg-white rounded-lg shadow-sm text-primary-600 border border-gray-100">
-                        <Home className="h-5 w-5" />
-                      </div>
-                      <div>
-                        <p className="text-xs text-gray-500 uppercase font-semibold tracking-wider">Location</p>
-                        <div className="flex items-center gap-2">
-                          <p className="text-sm font-medium text-gray-900">{maidProfile.location || 'Not set'}</p>
-                          {!maidProfile.location && (
-                            <button
-                              onClick={async () => {
-                                if ('geolocation' in navigator) {
-                                  navigator.geolocation.getCurrentPosition(async (position) => {
-                                    const { latitude, longitude } = position.coords;
-                                    try {
-                                      const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
-                                      const data = await response.json();
-                                      const location = data.address.city || data.address.town || data.address.county || 'Unknown location';
-                                      await maidAPI.updateMyProfile({ location, latitude: latitude.toFixed(6), longitude: longitude.toFixed(6) });
-                                      setMaidProfile({ ...maidProfile, location, latitude, longitude });
-                                    } catch (error) { console.error(error); }
-                                  },
-                                    (error) => alert('Unable to get location.')
-                                  );
-                                }
-                              }}
-                              className="text-xs text-primary-600 hover:underline"
-                            >Detect</button>
-                          )}
-                        </div>
-                        {liveLocationLabel && (
-                          <p className="mt-1 text-xs text-gray-500">
-                            {liveLocationLabel}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Homeowner Profile Card */}
         {isHomeowner && currentUser && (
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mb-8 transition-all hover:shadow-md">
             <div className="bg-gradient-to-r from-primary-50 to-secondary-50 px-6 py-4 border-b border-gray-100 flex justify-between items-center">
@@ -1432,177 +1200,6 @@ const Dashboard = () => {
                     )}
                   </div>
                 </div>
-
-        {/* Homeowner: Job Responses Modal */}
-        {isHomeowner && showJobResponsesModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-            <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full max-h-[85vh] overflow-y-auto">
-              <div className="flex items-center justify-between px-5 py-4 border-b">
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900">Responses</h3>
-                  {jobResponsesFor && (
-                    <p className="text-xs text-gray-500 mt-0.5">
-                      For: {jobResponsesFor.title} — {jobResponsesFor.job_date} {jobResponsesFor.location && `• ${jobResponsesFor.location}`}
-                    </p>
-                  )}
-                </div>
-                <button
-                  type="button"
-                  className="text-gray-400 hover:text-gray-600"
-                  onClick={() => {
-                    setShowJobResponsesModal(false);
-                    setJobResponsesFor(null);
-                    setJobResponses([]);
-                  }}
-                >
-                  ✕
-                </button>
-              </div>
-              <div className="px-5 py-4">
-                {jobResponsesLoading ? (
-                  <p className="text-sm text-gray-500">Loading responses...</p>
-                ) : jobResponses && jobResponses.length > 0 ? (
-                  <ul className="divide-y divide-gray-100">
-                    {jobResponses.map((app) => {
-                      const maid = app.maid;
-                      const company = app.cleaning_company;
-                      const nurse = app.nurse;
-
-                      return (
-                        <li key={app.id} className="py-3 flex flex-col gap-2">
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="flex items-start gap-3">
-                              {maid?.profile_photo && (
-                                <img
-                                  src={maid.profile_photo}
-                                  alt={maid.full_name || maid.username || 'Maid'}
-                                  className="h-10 w-10 rounded-full object-cover border border-gray-200"
-                                />
-                              )}
-                              {company?.display_photo_url && (
-                                <img
-                                  src={company.display_photo_url}
-                                  alt={company.company_name || company.username || 'Cleaning company'}
-                                  className="h-10 w-10 rounded-full object-cover border border-gray-200"
-                                />
-                              )}
-                              {nurse?.display_photo && (
-                                <img
-                                  src={nurse.display_photo}
-                                  alt={nurse.username || 'Home nurse'}
-                                  className="h-10 w-10 rounded-full object-cover border border-gray-200"
-                                />
-                              )}
-                              <div>
-                                <p className="text-sm font-medium text-gray-900">
-                                  {maid?.full_name || maid?.username || company?.company_name || company?.username || nurse?.username || 'Applicant'}
-                                </p>
-                                <div className="flex flex-wrap items-center gap-2 text-[11px] text-gray-500 mt-0.5">
-                                  {maid?.gender && <span>{maid.gender}</span>}
-                                  {maid?.age && <span>• {maid.age} yrs</span>}
-                                  {maid?.location && <span>• {maid.location}</span>}
-                                  {typeof maid?.rating === 'number' && (
-                                    <span>• Rating: {maid.rating.toFixed ? maid.rating.toFixed(1) : maid.rating}/5</span>
-                                  )}
-                                  {typeof maid?.total_jobs_completed === 'number' && (
-                                    <span>• Jobs: {maid.total_jobs_completed}</span>
-                                  )}
-                                  {company?.location && <span>{company.location}</span>}
-                                  {nurse?.location && <span>{nurse.location}</span>}
-                                </div>
-                                {maid?.skills && (
-                                  <p className="text-[11px] text-gray-500 mt-1">
-                                    Services offered: {maid.skills}
-                                  </p>
-                                )}
-                                {company?.service_pricing && (
-                                  <p className="text-[11px] text-gray-500 mt-1">
-                                    Services offered: {company.service_pricing}
-                                  </p>
-                                )}
-                                {nurse?.service_pricing && (
-                                  <p className="text-[11px] text-gray-500 mt-1">
-                                    Services offered: {nurse.service_pricing}
-                                  </p>
-                                )}
-                                {app.proposed_rate && (
-                                  <p className="text-xs text-gray-600 mt-0.5">
-                                    Proposed pay: UGX {app.proposed_rate}
-                                  </p>
-                                )}
-                                {app.cover_letter && (
-                                  <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">
-                                    {app.cover_letter}
-                                  </p>
-                                )}
-                                {app.status && (
-                                  <p className="text-[11px] text-gray-500 mt-0.5">Status: {app.status}</p>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                          <div className="flex items-center justify-between gap-3">
-                            <div className="text-xs text-gray-500">
-                              {app.status === 'accepted' && (
-                                <p className="text-xs text-green-700 font-medium">
-                                  {maid && (
-                                    <>Maid contact: {maid.phone_number || maid.user?.phone_number || maid.user?.email || 'Contact details on file'}</>
-                                  )}
-                                  {company && !maid && (
-                                    <>Company contact: {company.phone_number || company.email || 'Contact details on file'}</>
-                                  )}
-                                  {nurse && !maid && !company && (
-                                    <>Nurse contact: {nurse.phone_number || nurse.email || 'Contact details on file'}</>
-                                  )}
-                                </p>
-                              )}
-                            </div>
-                            <div className="flex gap-2">
-                              <button
-                                type="button"
-                                className="px-3 py-1 rounded-full text-xs font-medium bg-green-600 text-white hover:bg-green-700 disabled:opacity-50"
-                                disabled={app.status === 'accepted'}
-                                onClick={async () => {
-                                  try {
-                                    await applicationAPI.accept(app.id);
-                                    await loadJobResponses(jobResponsesFor);
-                                  } catch (err) {
-                                    console.error('Failed to accept application', err);
-                                    alert('Could not accept this application.');
-                                  }
-                                }}
-                              >
-                                Accept
-                              </button>
-                              <button
-                                type="button"
-                                className="px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 disabled:opacity-50"
-                                disabled={app.status === 'rejected'}
-                                onClick={async () => {
-                                  try {
-                                    await applicationAPI.reject(app.id);
-                                    await loadJobResponses(jobResponsesFor);
-                                  } catch (err) {
-                                    console.error('Failed to reject application', err);
-                                    alert('Could not reject this application.');
-                                  }
-                                }}
-                              >
-                                Reject
-                              </button>
-                            </div>
-                          </div>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                ) : (
-                  <p className="text-sm text-gray-500">No one has responded to this request yet.</p>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
 
                 {/* Info */}
                 <div className="flex-1 w-full">
@@ -1653,124 +1250,42 @@ const Dashboard = () => {
                         <p className="text-sm font-medium text-gray-900">{homeownerProfile?.number_of_rooms || 'Not set'} rooms</p>
                       </div>
                     </div>
+                    {/* Payment Plan Status */}
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-white rounded-lg shadow-sm text-secondary-600 border border-gray-100">
+                        <CreditCard className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-500 uppercase font-semibold tracking-wider">Payment plan status</p>
+                        <p className="text-sm font-medium text-gray-900">
+                          {(() => {
+                            const hp = homeownerProfile;
+                            if (!hp) return 'No active plan';
+                            const now = new Date();
+                            const exp = hp.subscription_expires_at ? new Date(hp.subscription_expires_at) : null;
+                            const hasSub = hp.subscription_type && hp.subscription_type !== 'none' && exp && exp > now;
+                            if (hasSub) {
+                              if (hp.subscription_type === 'monthly') {
+                                return `Monthly subscription active until ${exp.toLocaleDateString()}`;
+                              }
+                              if (hp.subscription_type === 'day_pass') {
+                                return `24 hour pass active until ${exp.toLocaleString()}`;
+                              }
+                            }
+                            if (hp.has_live_in_credit) {
+                              return 'Live-in placement credit available for your next hire';
+                            }
+                            return 'No active plan';
+                          })()}
+                        </p>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
           </div>
         )}
-
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          {isMaid && (
-            <>
-              <div className="card">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600">Jobs Completed</p>
-                    <p className="text-3xl font-bold text-gray-900">{Number(maidProfile?.total_jobs_completed || 0)}</p>
-                  </div>
-                  <div className="bg-primary-100 p-3 rounded-lg">
-                    <Briefcase className="w-8 h-8 text-primary-600" />
-                  </div>
-                </div>
-              </div>
-              <div className="card">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600">Rating</p>
-                    <p className="text-3xl font-bold text-gray-900">{Number(maidProfile?.rating || 0).toFixed(1)}</p>
-                  </div>
-                  <div className="bg-yellow-100 p-3 rounded-lg">
-                    <Star className="w-8 h-8 text-yellow-600" />
-                  </div>
-                </div>
-              </div>
-            </>
-          )}
-          {isAdmin && adminStats && (
-            <>
-              <div className="card">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600">Total Maids</p>
-                    <p className="text-3xl font-bold text-gray-900">{adminStats.total_maids}</p>
-                    <p className="text-xs text-gray-500 mt-1">Verified: {adminStats.verified_maids} • Not verified: {adminStats.unverified_maids}</p>
-                  </div>
-                  <div className="bg-primary-100 p-3 rounded-lg">
-                    <Users className="w-8 h-8 text-primary-600" />
-                  </div>
-                </div>
-              </div>
-              <div className="card">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600">Total Homeowners</p>
-                    <p className="text-3xl font-bold text-gray-900">{adminStats.total_homeowners}</p>
-                  </div>
-                  <div className="bg-yellow-100 p-3 rounded-lg">
-                    <Home className="w-8 h-8 text-yellow-600" />
-                  </div>
-                </div>
-              </div>
-              <div className="card">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600">Cleaning Companies</p>
-                    <p className="text-3xl font-bold text-gray-900">{adminStats.total_cleaning_companies}</p>
-                  </div>
-                  <div className="bg-green-100 p-3 rounded-lg">
-                    <Users className="w-8 h-8 text-green-600" />
-                  </div>
-                </div>
-              </div>
-              <div className="card">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600">Home Nurses</p>
-                    <p className="text-3xl font-bold text-gray-900">{adminStats.total_home_nurses}</p>
-                  </div>
-                  <div className="bg-pink-100 p-3 rounded-lg">
-                    <Users className="w-8 h-8 text-pink-600" />
-                  </div>
-                </div>
-              </div>
-              <div className="card">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600">Temporary Available</p>
-                    <p className="text-3xl font-bold text-gray-900">{adminStats.temporary_available_maids}</p>
-                  </div>
-                  <div className="bg-green-100 p-3 rounded-lg">
-                    <Briefcase className="w-8 h-8 text-green-600" />
-                  </div>
-                </div>
-              </div>
-              <div className="card">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600">Live-in Available</p>
-                    <p className="text-3xl font-bold text-gray-900">{adminStats.live_in_available_maids}</p>
-                  </div>
-                  <div className="bg-purple-100 p-3 rounded-lg">
-                    <Home className="w-8 h-8 text-purple-600" />
-                  </div>
-                </div>
-              </div>
-              <div className="card">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600">Completed Jobs</p>
-                    <p className="text-3xl font-bold text-gray-900">{adminStats.completed_jobs}</p>
-                  </div>
-                  <div className="bg-blue-100 p-3 rounded-lg">
-                    <Star className="w-8 h-8 text-blue-600" />
-                  </div>
-                </div>
-              </div>
-            </>
-          )}
-        </div>
 
         {/* Maid: Services Offered row (above Quick Actions) */}
         {isMaid && maidProfile && (

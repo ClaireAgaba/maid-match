@@ -12,10 +12,19 @@ class MaidServiceCategoryAdmin(admin.ModelAdmin):
 
 @admin.register(MaidProfile)
 class MaidProfileAdmin(admin.ModelAdmin):
-    list_display = ('full_name', 'phone_number', 'location', 'experience_years', 'hourly_rate', 'availability_status', 'rating')
-    list_filter = ('availability_status', 'experience_years', 'date_of_birth')
+    list_display = (
+        'full_name',
+        'phone_number',
+        'location',
+        'experience_years',
+        'hourly_rate',
+        'availability_status',
+        'rating',
+        'onboarding_fee_paid',
+    )
+    list_filter = ('availability_status', 'experience_years', 'date_of_birth', 'onboarding_fee_paid')
     search_fields = ('full_name', 'phone_number', 'email', 'location', 'skills', 'user__username')
-    readonly_fields = ('created_at', 'updated_at', 'total_jobs_completed', 'rating')
+    readonly_fields = ('created_at', 'updated_at', 'total_jobs_completed', 'rating', 'onboarding_fee_paid_at')
     
     fieldsets = (
         ('Bio Data & General Info', {
@@ -29,6 +38,9 @@ class MaidProfileAdmin(admin.ModelAdmin):
         }),
         ('Performance', {
             'fields': ('rating', 'total_jobs_completed')
+        }),
+        ('Onboarding Payment', {
+            'fields': ('onboarding_fee_paid', 'onboarding_fee_paid_at')
         }),
         ('Documents', {
             'fields': ('id_document', 'certificate')

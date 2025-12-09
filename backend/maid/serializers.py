@@ -30,6 +30,7 @@ class MaidProfileSerializer(serializers.ModelSerializer):
             # Professional Info
             'bio', 'experience_years', 'hourly_rate', 'category', 'skills', 'service_pricing',
             'availability_status', 'rating', 'total_jobs_completed',
+            'onboarding_fee_paid', 'onboarding_fee_paid_at',
             # Account Status
             'is_verified', 'is_enabled', 'verification_notes',
             # Documents
@@ -37,7 +38,7 @@ class MaidProfileSerializer(serializers.ModelSerializer):
             # Related
             'availability', 'created_at', 'updated_at'
         ]
-        read_only_fields = ['rating', 'total_jobs_completed', 'created_at', 'updated_at', 'age']
+        read_only_fields = ['rating', 'total_jobs_completed', 'onboarding_fee_paid', 'onboarding_fee_paid_at', 'created_at', 'updated_at', 'age']
     
     def get_age(self, obj):
         """Calculate age from date of birth"""

@@ -19,9 +19,15 @@ class HomeownerProfileSerializer(serializers.ModelSerializer):
             'id', 'user', 'home_address', 'home_type', 'number_of_rooms',
             'preferred_maid_gender', 'id_document', 'lc_letter',
             'is_verified', 'is_active', 'verification_notes',
+            'has_live_in_credit', 'live_in_credit_awarded_at',
+            'subscription_type', 'subscription_expires_at',
             'created_at', 'updated_at'
         ]
-        read_only_fields = ['created_at', 'updated_at']
+        read_only_fields = [
+            'created_at', 'updated_at',
+            'has_live_in_credit', 'live_in_credit_awarded_at',
+            'subscription_type', 'subscription_expires_at',
+        ]
 
 
 class HomeownerProfileUpdateSerializer(serializers.ModelSerializer):

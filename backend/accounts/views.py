@@ -140,6 +140,58 @@ class UserRegistrationView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+class PasswordLoginView(APIView):
+    """Phone number + password login at /api/accounts/login/.
+
+    This replaces the previous OTP login at this URL. The OTP endpoints are
+    still available under /login/send-pin/ and /login/verify-pin/.
+    """
+
+    permission_classes = [permissions.AllowAny]
+    authentication_classes = []
+
+    def post(self, request):
+        serializer = LoginSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        phone = serializer.validated_data["phone_number"].strip()
+        password = serializer.validated_data["password"]
+
+        try:
+            user = User.objects.get(phone_number=phone)
+        except User.DoesNotExist:
+            return Response({"error": "Invalid phone number or password"}, status=status.HTTP_401_UNAUTHORIZED)
+
+        if not user.has_usable_password():
+            return Response({"error": "This account does not have a password yet. Please set your password first."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if not user.check_password(password):
+            return Response({"error": "Invalid phone number or password"}, status=status.HTTP_401_UNAUTHORIZED)
+
+        # Reuse the same blocking logic as OTP login for disabled accounts.
+        try:
+            if user.user_type == 'homeowner' and hasattr(user, 'homeowner_profile'):
+                if not user.homeowner_profile.is_active:
+                    return Response({
+                        'error': 'Your account is blocked. Please contact the MaidMatch team for support.'
+                    }, status=status.HTTP_403_FORBIDDEN)
+            if user.user_type == 'maid' and hasattr(user, 'maid_profile'):
+                if not user.maid_profile.is_enabled:
+                    return Response({
+                        'error': 'Your account is blocked. Please contact the MaidMatch team for support.'
+                    }, status=status.HTTP_403_FORBIDDEN)
+        except Exception:
+            pass
+
+        token = generate_access_token(user)
+        return Response({
+            'message': 'Login successful',
+            'user': UserSerializer(user).data,
+            'access': token,
+        }, status=status.HTTP_200_OK)
+
+
 @method_decorator(csrf_exempt, name='dispatch')
 class SendLoginPinView(APIView):
     # Allow anonymous access and bypass JWT authentication entirely. We rely
@@ -317,3 +369,24 @@ class UserViewSet(viewsets.ModelViewSet):
             }, status=status.HTTP_200_OK)
         
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=False, methods=['post'])
+    def set_initial_password(self, request):
+        """Allow OTP-only users (no usable password) to set a password once.
+
+        Does not require the old password, but refuses if a usable password is
+        already set. Uses the same payload shape as ChangePasswordSerializer but
+        ignores old_password.
+        """
+
+        serializer = ChangePasswordSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        user = request.user
+        if user.has_usable_password():
+            return Response({"error": "Password already set for this account."}, status=status.HTTP_400_BAD_REQUEST)
+
+        user.set_password(serializer.validated_data['new_password'])
+        user.save()
+        return Response({"message": "Password set successfully"}, status=status.HTTP_200_OK)

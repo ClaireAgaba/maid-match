@@ -83,6 +83,10 @@ class MaidProfile(models.Model):
     is_verified = models.BooleanField(default=False, help_text="Account verified by admin")
     is_enabled = models.BooleanField(default=True, help_text="Account enabled/disabled by admin")
     verification_notes = models.TextField(blank=True, null=True, help_text="Admin notes on verification")
+
+    # Onboarding payment
+    onboarding_fee_paid = models.BooleanField(default=False, help_text="Whether the maid has paid the onboarding fee")
+    onboarding_fee_paid_at = models.DateTimeField(null=True, blank=True, help_text="When the onboarding fee was recorded as paid")
     
     # Documents
     id_document = models.FileField(upload_to='maid_documents/ids/', blank=True, null=True)

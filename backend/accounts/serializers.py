@@ -76,12 +76,17 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         return attrs
 
     def create(self, validated_data):
-        # We ignore any supplied password and always mark the account as
-        # passwordless. Authentication is handled via OTP / token flows.
-        validated_data.pop('password', None)
+        password = validated_data.pop('password', None)
         validated_data.pop('password2', None)
+
         user = User.objects.create_user(**validated_data)
-        user.set_unusable_password()
+
+        # If a password was supplied, use it; otherwise keep the account
+        # passwordless so it can continue to use OTP until the user sets one.
+        if password:
+            user.set_password(password)
+        else:
+            user.set_unusable_password()
         user.save(update_fields=["password"])
         return user
 

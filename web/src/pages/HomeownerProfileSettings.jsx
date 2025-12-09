@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { homeownerAPI, authAPI } from '../services/api';
+import { homeownerAPI, authAPI, paymentAPI } from '../services/api';
 import { 
   User, Phone, Mail, MapPin, Home as HomeIcon, 
   Save, CheckCircle, AlertCircle, Camera, Upload, FileText,
@@ -41,6 +41,13 @@ const HomeownerProfileSettings = () => {
     id_document: null,
     lc_letter: null,
   });
+
+  const [paymentModalOpen, setPaymentModalOpen] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState(null); // 'live_in' | 'monthly' | 'day_pass'
+  const [paymentNetwork, setPaymentNetwork] = useState('mtn');
+  const [paymentPhone, setPaymentPhone] = useState('');
+  const [paymentMessage, setPaymentMessage] = useState('');
+  const [paymentSubmitting, setPaymentSubmitting] = useState(false);
 
   useEffect(() => {
     fetchProfile();
@@ -227,24 +234,61 @@ const HomeownerProfileSettings = () => {
           </button>
         </div>
 
-        {/* Payments & Subscriptions */}
+        {/* Payments & Access Plans */}
         <div className="card">
           <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
             <CreditCard className="h-5 w-5 mr-2 text-primary-600" />
-            Payments &amp; subscriptions
+            Payments &amp; access
           </h2>
           <p className="text-sm text-gray-600 mb-3">
-            Manage how you pay for services and future subscription plans.
+            Choose how you want to use Maid Match. All payments are processed via secure Mobile Money.
           </p>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-700">
-            <div className="p-3 rounded-lg border border-dashed border-gray-300 bg-gray-50">
-              <p className="font-semibold mb-1">Saved payment methods</p>
-              <p className="text-xs text-gray-500">Coming soon – you&apos;ll be able to save and manage cards or mobile money here.</p>
-            </div>
-            <div className="p-3 rounded-lg border border-dashed border-gray-300 bg-gray-50">
-              <p className="font-semibold mb-1">Subscriptions &amp; billing history</p>
-              <p className="text-xs text-gray-500">No active subscriptions yet. This section will show your plans and invoices once enabled.</p>
-            </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-700">
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedPlan('live_in');
+                setPaymentNetwork('mtn');
+                setPaymentPhone(profileData.phone_number || '');
+                setPaymentMessage('');
+                setPaymentModalOpen(true);
+              }}
+              className="p-3 rounded-lg border border-gray-200 bg-gray-50 hover:border-primary-300 hover:bg-primary-50/40 transition text-left"
+            >
+              <p className="font-semibold mb-1">Live-in placement fee</p>
+              <p className="text-xs text-gray-500 mb-1">UGX 25,000 once per live-in maid hired.</p>
+              <p className="text-[11px] text-gray-500">Pay when you are ready to hire a live-in maid through the app.</p>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedPlan('monthly');
+                setPaymentNetwork('mtn');
+                setPaymentPhone(profileData.phone_number || '');
+                setPaymentMessage('');
+                setPaymentModalOpen(true);
+              }}
+              className="p-3 rounded-lg border border-gray-200 bg-gray-50 hover:border-primary-300 hover:bg-primary-50/40 transition text-left"
+            >
+              <p className="font-semibold mb-1">Monthly access</p>
+              <p className="text-xs text-gray-500 mb-1">UGX 20,000 for 30 days.</p>
+              <p className="text-[11px] text-gray-500">Browse maids, companies &amp; nurses and schedule services.</p>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedPlan('day_pass');
+                setPaymentNetwork('mtn');
+                setPaymentPhone(profileData.phone_number || '');
+                setPaymentMessage('');
+                setPaymentModalOpen(true);
+              }}
+              className="p-3 rounded-lg border border-gray-200 bg-gray-50 hover:border-primary-300 hover:bg-primary-50/40 transition text-left"
+            >
+              <p className="font-semibold mb-1">24 hour pass</p>
+              <p className="text-xs text-gray-500 mb-1">UGX 5,000 for 24 hours.</p>
+              <p className="text-[11px] text-gray-500">Short-term access to view contacts and schedule a one-off service.</p>
+            </button>
           </div>
         </div>
 
@@ -620,6 +664,110 @@ const HomeownerProfileSettings = () => {
           </div>
         </form>
       </div>
+
+      {/* Payment Modal */}
+      {paymentModalOpen && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 px-4">
+          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full">
+            <div className="flex items-center justify-between px-5 py-4 border-b">
+              <h3 className="text-lg font-semibold text-gray-900">Confirm Mobile Money Payment</h3>
+              <button
+                type="button"
+                className="text-gray-400 hover:text-gray-600"
+                onClick={() => {
+                  if (paymentSubmitting) return;
+                  setPaymentModalOpen(false);
+                  setPaymentMessage('');
+                }}
+              >
+                ✕
+              </button>
+            </div>
+            <div className="px-5 py-4 space-y-4">
+              <p className="text-sm text-gray-600">
+                Pay using MTN or Airtel Mobile Money. We will redirect you to Pesapal to complete the payment, then you will receive a prompt on your phone to enter your PIN.
+              </p>
+              {paymentMessage && (
+                <p className="text-sm text-gray-700 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
+                  {paymentMessage}
+                </p>
+              )}
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Plan</label>
+                  <p className="text-sm font-semibold text-gray-900">
+                    {selectedPlan === 'live_in' && 'Live-in placement fee (UGX 25,000)'}
+                    {selectedPlan === 'monthly' && 'Monthly access (UGX 20,000)'}
+                    {selectedPlan === 'day_pass' && '24 hour pass (UGX 5,000)'}
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Network</label>
+                  <select
+                    className="input-field text-sm"
+                    value={paymentNetwork}
+                    onChange={(e) => setPaymentNetwork(e.target.value)}
+                  >
+                    <option value="mtn">MTN Mobile Money</option>
+                    <option value="airtel">Airtel Money</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Mobile Money number</label>
+                  <input
+                    type="tel"
+                    className="input-field text-sm"
+                    value={paymentPhone}
+                    onChange={(e) => setPaymentPhone(e.target.value)}
+                    placeholder="e.g. 0771234567"
+                  />
+                </div>
+              </div>
+              <button
+                type="button"
+                disabled={paymentSubmitting}
+                className="w-full btn-primary text-sm flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed mt-2"
+                onClick={async () => {
+                  if (!paymentPhone.trim()) {
+                    setPaymentMessage('Please enter the mobile number you are paying from.');
+                    return;
+                  }
+                  if (!selectedPlan) {
+                    setPaymentMessage('Please choose a plan again from the Payments section.');
+                    return;
+                  }
+                  setPaymentSubmitting(true);
+                  setPaymentMessage('');
+                  try {
+                    const res = await paymentAPI.initiateHomeownerPayment({
+                      plan: selectedPlan,
+                      network: paymentNetwork,
+                      phone_number: paymentPhone.trim(),
+                    });
+                    const msg = res.data?.message || 'We have sent your payment request to Pesapal. Follow the Pesapal page to complete payment.';
+                    setPaymentMessage(msg);
+                    const redirectUrl = res.data?.redirect_url;
+                    if (redirectUrl) {
+                      window.open(redirectUrl, '_blank', 'noopener,noreferrer');
+                    }
+                  } catch (err) {
+                    const data = err.response?.data;
+                    const msg = data?.error || data?.detail || 'Failed to start payment. Please try again.';
+                    setPaymentMessage(msg);
+                  } finally {
+                    setPaymentSubmitting(false);
+                  }
+                }}
+              >
+                {paymentSubmitting ? 'Starting payment...' : 'Pay via Mobile Money'}
+              </button>
+              <p className="text-[11px] text-gray-500 mt-1">
+                You will receive a Mobile Money prompt on your phone to enter your PIN. Maid Match does not see or store your PIN.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

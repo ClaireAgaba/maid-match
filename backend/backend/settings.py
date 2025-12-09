@@ -53,6 +53,7 @@ INSTALLED_APPS = [
     'admin_app',
     'cleaning_company',
     'home_nursing',
+    'payments',
 ]
 
 MIDDLEWARE = [

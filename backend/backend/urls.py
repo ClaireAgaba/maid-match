@@ -35,6 +35,7 @@ urlpatterns = [
     path('api/homeowner/', include('homeowner.urls')),
     path('api/cleaning-company/', include('cleaning_company.urls')),
     path('api/home-nursing/', include('home_nursing.urls')),
+    path('api/payments/', include('payments.urls')),
 ]
 
 # Serve media files in development
