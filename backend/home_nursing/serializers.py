@@ -27,6 +27,10 @@ class HomeNurseCreateSerializer(serializers.ModelSerializer):
             "date_of_birth",
             "display_photo",
             "service_pricing",
+            "id_document",
+            "nursing_certificate",
+            "onboarding_fee_paid",
+            "onboarding_fee_paid_at",
         ]
 
     def validate_services(self, value):
@@ -91,6 +95,10 @@ class HomeNurseMinimalSerializer(serializers.ModelSerializer):
             "services",
             "display_photo",
             "service_pricing",
+            "id_document",
+            "nursing_certificate",
+            "onboarding_fee_paid",
+            "onboarding_fee_paid_at",
             "created_at",
             "updated_at",
         ]
@@ -125,6 +133,8 @@ class HomeNurseUpdateSerializer(serializers.ModelSerializer):
             "location",
             "display_photo",
             "service_pricing",
+            "id_document",
+            "nursing_certificate",
         ]
 
     def update(self, instance, validated_data):
@@ -159,6 +169,10 @@ class AdminHomeNurseSerializer(serializers.ModelSerializer):
             "years_of_experience",
             "services",
             "service_pricing",
+            "onboarding_fee_paid",
+            "onboarding_fee_paid_at",
+            "id_document",
+            "nursing_certificate",
             "created_at",
             "updated_at",
         ]

@@ -83,7 +83,9 @@ class MaidProfileListSerializer(serializers.ModelSerializer):
             'location', 'phone_number', 'email', 'skills', 'service_pricing', 'bio',
             'experience_years', 'hourly_rate', 'availability_status',
             'rating', 'total_jobs_completed', 'distance_km',
-            'is_verified', 'is_enabled', 'verification_notes', 'created_at'
+            'is_verified', 'is_enabled', 'verification_notes',
+            'id_document', 'certificate',
+            'created_at'
         ]
     
     def get_age(self, obj):

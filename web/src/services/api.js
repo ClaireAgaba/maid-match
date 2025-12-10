@@ -167,6 +167,7 @@ export const supportAPI = {
 // Payments API
 export const paymentAPI = {
   initiateMaidOnboarding: (payload) => api.post('/payments/maid-onboarding/initiate/', payload),
+  initiateHomeNurseOnboarding: (payload) => api.post('/payments/home-nurse-onboarding/initiate/', payload),
   initiateHomeownerPayment: (payload) => api.post('/payments/homeowner/initiate/', payload),
   // Cleaning company payment plans (monthly/annual subscriptions)
   initiateCompanyPayment: (payload) => api.post('/payments/cleaning-company/initiate/', payload),

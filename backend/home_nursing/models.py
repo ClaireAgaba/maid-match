@@ -65,6 +65,28 @@ class HomeNurse(models.Model):
     current_latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
     current_longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
     service_pricing = models.TextField(blank=True, null=True, help_text="Per-category starting pay in free text (one per line)")
+    id_document = models.FileField(
+        upload_to="nurse_documents/ids/",
+        blank=True,
+        null=True,
+        help_text="Upload a copy of government-issued ID",
+    )
+    nursing_certificate = models.FileField(
+        upload_to="nurse_documents/certificates/",
+        blank=True,
+        null=True,
+        help_text="Upload proof of nursing qualification (certificate or diploma)",
+    )
+    # Premium onboarding payment (one-time fee)
+    onboarding_fee_paid = models.BooleanField(
+        default=False,
+        help_text="Whether the nurse has paid the onboarding fee",
+    )
+    onboarding_fee_paid_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When the onboarding fee was recorded as paid",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

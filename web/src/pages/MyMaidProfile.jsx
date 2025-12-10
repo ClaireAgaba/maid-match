@@ -139,8 +139,40 @@ const MyMaidProfile = () => {
         {/* Documents */}
         <div className="card">
           <h3 className="text-lg font-semibold text-gray-900 mb-2">Documents</h3>
-          <Row label="ID Document" value={profile.id_document ? 'Uploaded' : ''} />
-          <Row label="Certificate" value={profile.certificate ? 'Uploaded' : ''} />
+          <Row
+            label="ID Document"
+            value={
+              profile.id_document ? (
+                <a
+                  href={profile.id_document}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-primary-600 hover:text-primary-800 underline"
+                >
+                  View ID document
+                </a>
+              ) : (
+                ''
+              )
+            }
+          />
+          <Row
+            label="Certificate"
+            value={
+              profile.certificate ? (
+                <a
+                  href={profile.certificate}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-primary-600 hover:text-primary-800 underline"
+                >
+                  View certificate
+                </a>
+              ) : (
+                ''
+              )
+            }
+          />
           {!profile.is_verified && profile.verification_notes && (
             <div className="mt-3 text-sm text-yellow-800 bg-yellow-50 border border-yellow-200 p-3 rounded">
               Admin notes: {profile.verification_notes}

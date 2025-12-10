@@ -134,6 +134,19 @@ const ViewCompanyProfile = () => {
           <div>
             <p className="text-gray-700">Location</p>
             <p className="font-medium">{profile.location || 'Not set'}</p>
+            {profile.id_document && (
+              <p className="mt-2 text-sm text-gray-700">
+                Company ID / registration:{' '}
+                <a
+                  href={profile.id_document}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-primary-600 hover:text-primary-800 underline"
+                >
+                  View document
+                </a>
+              </p>
+            )}
           </div>
           <span className={`px-2 py-1 rounded-full text-xs font-medium ${profile.verified ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
             {profile.verified ? 'Verified' : 'Not Verified'}

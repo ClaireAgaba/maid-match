@@ -239,6 +239,40 @@ const ManageHomeNurses = () => {
                 </div>
               </div>
 
+              {(selected.id_document || selected.nursing_certificate) && (
+                <div>
+                  <h4 className="font-semibold text-gray-900 mb-2">Documents</h4>
+                  <div className="space-y-1 text-sm">
+                    {selected.id_document && (
+                      <div>
+                        <span className="text-gray-700 mr-2">ID Document:</span>
+                        <a
+                          href={selected.id_document}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-primary-600 hover:text-primary-700 underline"
+                        >
+                          View
+                        </a>
+                      </div>
+                    )}
+                    {selected.nursing_certificate && (
+                      <div>
+                        <span className="text-gray-700 mr-2">Nursing certificate / diploma:</span>
+                        <a
+                          href={selected.nursing_certificate}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-primary-600 hover:text-primary-700 underline"
+                        >
+                          View
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {Array.isArray(selected.services) && selected.services.length > 0 && (
                 <div>
                   <h4 className="font-semibold text-gray-900 mb-2">Services</h4>

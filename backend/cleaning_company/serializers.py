@@ -11,6 +11,7 @@ class ServiceCategorySerializer(serializers.ModelSerializer):
 class CleaningCompanyCreateSerializer(serializers.ModelSerializer):
     services = serializers.PrimaryKeyRelatedField(many=True, queryset=ServiceCategory.objects.all())
     display_photo = serializers.ImageField(required=False, allow_null=True)
+    id_document = serializers.FileField(required=False, allow_null=True)
 
     class Meta:
         model = CleaningCompany
@@ -19,6 +20,7 @@ class CleaningCompanyCreateSerializer(serializers.ModelSerializer):
             "services",
             "location",
             "display_photo",
+            "id_document",
             "service_pricing",
         ]
 
@@ -51,6 +53,7 @@ class AdminCleaningCompanySerializer(serializers.ModelSerializer):
             "company_name",
             "location",
             "verified",
+            "id_document",
             "services",
             "created_at",
             "updated_at",
@@ -79,6 +82,7 @@ class CleaningCompanyMinimalSerializer(serializers.ModelSerializer):
             "subscription_type",
             "subscription_expires_at",
             "display_photo_url",
+            "id_document",
             "username",
             "user_id",
             "phone_number",
@@ -116,18 +120,22 @@ class CleaningWorkImageSerializer(serializers.ModelSerializer):
 class CleaningCompanyUpdateSerializer(serializers.ModelSerializer):
     services = serializers.PrimaryKeyRelatedField(many=True, queryset=ServiceCategory.objects.all(), required=False)
     display_photo = serializers.ImageField(required=False, allow_null=True)
+    id_document = serializers.FileField(required=False, allow_null=True)
 
     class Meta:
         model = CleaningCompany
-        fields = ["company_name", "location", "services", "display_photo", "service_pricing", "is_paused"]
+        fields = ["company_name", "location", "services", "display_photo", "id_document", "service_pricing", "is_paused"]
 
     def update(self, instance, validated_data):
         services = validated_data.pop("services", None)
         display_photo = validated_data.pop("display_photo", None)
+        id_document = validated_data.pop("id_document", None)
         for attr, val in validated_data.items():
             setattr(instance, attr, val)
         if display_photo is not None:
             instance.display_photo = display_photo
+        if id_document is not None:
+            instance.id_document = id_document
         instance.save()
         if services is not None:
             instance.services.set(services)

@@ -8,6 +8,7 @@ import requests
 from maid.models import MaidProfile
 from homeowner.models import HomeownerProfile
 from cleaning_company.models import CleaningCompany
+from home_nursing.models import HomeNurse
 from .models import MobileMoneyTransaction
 
 
@@ -154,6 +155,150 @@ class MaidOnboardingInitiateView(APIView):
             {
                 "status": "pending",
                 "message": "We have sent your payment request to Pesapal. If Mobile Money is available for your number, you should receive a prompt on your phone to enter your PIN.",
+                "transaction_id": tx.id,
+                "order_tracking_id": order_tracking_id,
+                "redirect_url": redirect_url,
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class HomeNurseOnboardingInitiateView(APIView):
+    """Initiate premium onboarding for home nurses (10k)."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        user = request.user
+        try:
+            nurse = HomeNurse.objects.get(user=user)
+        except HomeNurse.DoesNotExist:
+            return Response({"error": "Only home nurses can pay the onboarding fee."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if getattr(nurse, "onboarding_fee_paid", False):
+            return Response({"error": "Onboarding fee already paid."}, status=status.HTTP_400_BAD_REQUEST)
+
+        existing_tx = MobileMoneyTransaction.objects.filter(
+            home_nurse=nurse,
+            purpose=MobileMoneyTransaction.PURPOSE_HOME_NURSE_ONBOARDING,
+            status__in=[
+                MobileMoneyTransaction.STATUS_PENDING,
+                MobileMoneyTransaction.STATUS_SUCCESS,
+            ],
+        ).exists()
+        if existing_tx:
+            return Response(
+                {"error": "You already have an onboarding payment in progress or completed. If this looks wrong, contact support."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        network = str(request.data.get("network", "")).lower()
+        phone_number = str(request.data.get("phone_number", "")).strip()
+        if network not in {MobileMoneyTransaction.NETWORK_MTN, MobileMoneyTransaction.NETWORK_AIRTEL}:
+            return Response({"error": "Invalid network. Choose MTN or Airtel."}, status=status.HTTP_400_BAD_REQUEST)
+        if not phone_number:
+            return Response({"error": "Phone number is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        amount = Decimal("10000.00")
+
+        tx = MobileMoneyTransaction.objects.create(
+            home_nurse=nurse,
+            network=network,
+            phone_number=phone_number,
+            amount=amount,
+            purpose=MobileMoneyTransaction.PURPOSE_HOME_NURSE_ONBOARDING,
+        )
+
+        pesapal_key = config("PESAPAL_CONSUMER_KEY", default="")
+        pesapal_secret = config("PESAPAL_CONSUMER_SECRET", default="")
+        ipn_id = config("PESAPAL_IPN_ID", default="6ebfe1ed-3b45-4c19-89e6-dafef0f898ea")
+        if not pesapal_key or not pesapal_secret:
+            return Response({"error": "Payment configuration missing on server."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        auth_url = "https://pay.pesapal.com/v3/api/Auth/RequestToken"
+        try:
+            auth_resp = requests.post(
+                auth_url,
+                json={"consumer_key": pesapal_key, "consumer_secret": pesapal_secret},
+                headers={"Accept": "application/json", "Content-Type": "application/json"},
+                timeout=15,
+            )
+            auth_data = auth_resp.json() if auth_resp.content else {}
+        except Exception:
+            tx.status = MobileMoneyTransaction.STATUS_FAILED
+            tx.save(update_fields=["status"])
+            return Response({"error": "Failed to contact payment gateway."}, status=status.HTTP_502_BAD_GATEWAY)
+
+        token = auth_data.get("token")
+        if not token or auth_resp.status_code != 200:
+            tx.status = MobileMoneyTransaction.STATUS_FAILED
+            tx.save(update_fields=["status"])
+            return Response({"error": "Failed to authenticate with Pesapal."}, status=status.HTTP_502_BAD_GATEWAY)
+
+        submit_url = "https://pay.pesapal.com/v3/api/Transactions/SubmitOrderRequest"
+        merchant_reference = f"HN-ONBOARD-{tx.id}"
+        callback_url = config(
+            "PESAPAL_CALLBACK_URL",
+            default="https://maidmatch.pythonanywhere.com/pesapal/payment-complete/",
+        )
+        body = {
+            "id": merchant_reference,
+            "currency": "UGX",
+            "amount": float(amount),
+            "description": "MaidMatch home nurse premium onboarding fee (UGX 10,000)",
+            "callback_url": callback_url,
+            "redirect_mode": 0,
+            "notification_id": ipn_id,
+            "branch": "MaidMatch",
+            "billing_address": {
+                "email_address": getattr(user, "email", ""),
+                "phone_number": phone_number,
+                "country_code": "UG",
+                "first_name": getattr(user, "first_name", "") or "Nurse",
+                "middle_name": "",
+                "last_name": getattr(user, "last_name", "") or str(user.username),
+                "line_1": nurse.location or "",
+                "line_2": "",
+                "city": "",
+                "state": "",
+                "postal_code": "",
+                "zip_code": "",
+            },
+        }
+
+        try:
+            submit_resp = requests.post(
+                submit_url,
+                json=body,
+                headers={
+                    "Accept": "application/json",
+                    "Content-Type": "application/json",
+                    "Authorization": f"Bearer {token}",
+                },
+                timeout=20,
+            )
+            submit_data = submit_resp.json() if submit_resp.content else {}
+        except Exception:
+            tx.status = MobileMoneyTransaction.STATUS_FAILED
+            tx.save(update_fields=["status"])
+            return Response({"error": "Failed to create payment with Pesapal."}, status=status.HTTP_502_BAD_GATEWAY)
+
+        order_tracking_id = submit_data.get("order_tracking_id")
+        redirect_url = submit_data.get("redirect_url")
+        if submit_resp.status_code != 200 or not order_tracking_id:
+            tx.status = MobileMoneyTransaction.STATUS_FAILED
+            tx.raw_callback = submit_data
+            tx.save(update_fields=["status", "raw_callback"])
+            return Response({"error": "Payment gateway did not accept the request."}, status=status.HTTP_502_BAD_GATEWAY)
+
+        tx.provider_reference = order_tracking_id
+        tx.raw_callback = submit_data
+        tx.save(update_fields=["provider_reference", "raw_callback"])
+
+        return Response(
+            {
+                "status": "pending",
+                "message": "We have sent your payment request to Pesapal. Follow the Pesapal page to complete payment.",
                 "transaction_id": tx.id,
                 "order_tracking_id": order_tracking_id,
                 "redirect_url": redirect_url,
@@ -488,8 +633,8 @@ class PesapalIPNView(APIView):
         # Resolve by merchant reference prefix if needed
         if not tx and merchant_reference:
             try:
-                if merchant_reference.startswith("MM-ONBOARD-"):
-                    tx_id = int(merchant_reference.replace("MM-ONBOARD-", ""))
+                if merchant_reference.startswith("MM-ONBOARD-") or merchant_reference.startswith("HN-ONBOARD-"):
+                    tx_id = int(merchant_reference.split("-")[-1])
                     tx = MobileMoneyTransaction.objects.filter(id=tx_id).first()
                 elif merchant_reference.startswith("HM-LIVE-") or merchant_reference.startswith("HM-MONTH-") or merchant_reference.startswith("HM-DAY-") or merchant_reference.startswith("CC-MONTH-") or merchant_reference.startswith("CC-ANNUAL-"):
                     # All homeowner and company payments also use transaction ID at the end
@@ -554,6 +699,11 @@ class PesapalIPNView(APIView):
                 maid.onboarding_fee_paid = True
                 maid.onboarding_fee_paid_at = timezone.now()
                 maid.save(update_fields=["onboarding_fee_paid", "onboarding_fee_paid_at"])
+            elif tx.purpose == MobileMoneyTransaction.PURPOSE_HOME_NURSE_ONBOARDING and tx.home_nurse_id:
+                nurse = tx.home_nurse
+                nurse.onboarding_fee_paid = True
+                nurse.onboarding_fee_paid_at = timezone.now()
+                nurse.save(update_fields=["onboarding_fee_paid", "onboarding_fee_paid_at"])
             elif tx.purpose == MobileMoneyTransaction.PURPOSE_HOMEOWNER_LIVE_IN and tx.homeowner_id:
                 hp = tx.homeowner
                 hp.has_live_in_credit = True

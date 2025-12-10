@@ -3,6 +3,7 @@ from django.conf import settings
 from maid.models import MaidProfile
 from homeowner.models import HomeownerProfile
 from cleaning_company.models import CleaningCompany
+from home_nursing.models import HomeNurse
 
 
 class MobileMoneyTransaction(models.Model):
@@ -26,6 +27,7 @@ class MobileMoneyTransaction(models.Model):
 
     # Purpose / plan type (so we can reuse this table for maids and homeowners)
     PURPOSE_MAID_ONBOARDING = "maid_onboarding"
+    PURPOSE_HOME_NURSE_ONBOARDING = "home_nurse_onboarding"
     PURPOSE_HOMEOWNER_LIVE_IN = "homeowner_live_in"
     PURPOSE_HOMEOWNER_MONTHLY = "homeowner_monthly"
     PURPOSE_HOMEOWNER_DAY_PASS = "homeowner_day_pass"
@@ -34,6 +36,7 @@ class MobileMoneyTransaction(models.Model):
 
     PURPOSE_CHOICES = (
         (PURPOSE_MAID_ONBOARDING, "Maid onboarding fee"),
+        (PURPOSE_HOME_NURSE_ONBOARDING, "Home nurse premium onboarding fee"),
         (PURPOSE_HOMEOWNER_LIVE_IN, "Homeowner live-in placement fee"),
         (PURPOSE_HOMEOWNER_MONTHLY, "Homeowner monthly subscription"),
         (PURPOSE_HOMEOWNER_DAY_PASS, "Homeowner 24h access pass"),
@@ -42,6 +45,7 @@ class MobileMoneyTransaction(models.Model):
     )
 
     maid = models.ForeignKey(MaidProfile, on_delete=models.CASCADE, related_name="payments", null=True, blank=True)
+    home_nurse = models.ForeignKey(HomeNurse, on_delete=models.CASCADE, related_name="payments", null=True, blank=True)
     homeowner = models.ForeignKey(HomeownerProfile, on_delete=models.CASCADE, related_name="payments", null=True, blank=True)
     company = models.ForeignKey(CleaningCompany, on_delete=models.CASCADE, related_name="payments", null=True, blank=True)
     network = models.CharField(max_length=10, choices=NETWORK_CHOICES)

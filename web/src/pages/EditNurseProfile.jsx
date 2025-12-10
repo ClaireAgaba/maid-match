@@ -21,6 +21,8 @@ const EditNurseProfile = () => {
     display_photo: null,
     date_of_birth: '',
     service_pricing: '',
+    id_document: null,
+    nursing_certificate: null,
   });
   const [categories, setCategories] = useState(null);
 
@@ -50,6 +52,8 @@ const EditNurseProfile = () => {
             display_photo: null,
             date_of_birth: p.date_of_birth || '',
             service_pricing: p.service_pricing || '',
+            id_document: null,
+            nursing_certificate: null,
           });
           setExists(true);
         } catch (e) {
@@ -101,6 +105,8 @@ const EditNurseProfile = () => {
       if (form.display_photo) fd.append('display_photo', form.display_photo);
       if (form.date_of_birth) fd.append('date_of_birth', form.date_of_birth);
       if (form.service_pricing) fd.append('service_pricing', form.service_pricing);
+      if (form.id_document) fd.append('id_document', form.id_document);
+      if (form.nursing_certificate) fd.append('nursing_certificate', form.nursing_certificate);
       if (exists) await homeNursingAPI.updateMe(fd); else await homeNursingAPI.register(fd);
       navigate('/nurse/profile');
     } catch (e) {
@@ -132,6 +138,33 @@ const EditNurseProfile = () => {
             {form.display_photo && (
               <p className="text-xs text-green-600 mt-1">Selected: {form.display_photo.name}</p>
             )}
+          </div>
+          {/* Documents */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm text-gray-700 mb-1">ID Document (National ID, Passport, etc.)</label>
+              <input
+                type="file"
+                accept="image/*,application/pdf"
+                className="input-field"
+                onChange={(e) => setForm({ ...form, id_document: e.target.files?.[0] || null })}
+              />
+              {form.id_document && (
+                <p className="text-xs text-green-600 mt-1">Selected: {form.id_document.name}</p>
+              )}
+            </div>
+            <div>
+              <label className="block text-sm text-gray-700 mb-1">Nursing certificate / diploma</label>
+              <input
+                type="file"
+                accept="image/*,application/pdf"
+                className="input-field"
+                onChange={(e) => setForm({ ...form, nursing_certificate: e.target.files?.[0] || null })}
+              />
+              {form.nursing_certificate && (
+                <p className="text-xs text-green-600 mt-1">Selected: {form.nursing_certificate.name}</p>
+              )}
+            </div>
           </div>
           <div>
             <label className="block text-sm text-gray-700 mb-1">Date of Birth</label>

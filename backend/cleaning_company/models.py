@@ -41,6 +41,12 @@ class CleaningCompany(models.Model):
     current_latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
     current_longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
     display_photo = models.ImageField(upload_to="company_photos/", blank=True, null=True)
+    id_document = models.FileField(
+        upload_to="company_documents/",
+        blank=True,
+        null=True,
+        help_text="Business registration certificate or owner ID document",
+    )
     verified = models.BooleanField(default=False)
     is_paused = models.BooleanField(
         default=False,

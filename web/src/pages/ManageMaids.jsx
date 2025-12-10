@@ -487,6 +487,43 @@ const ManageMaids = () => {
                 </div>
               )}
 
+              {/* Documents */}
+              <div>
+                <h4 className="font-semibold text-gray-900 mb-2">Documents</h4>
+                <div className="space-y-1 text-sm">
+                  <p>
+                    ID Document:{' '}
+                    {selectedMaid.id_document ? (
+                      <a
+                        href={selectedMaid.id_document}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-primary-600 hover:text-primary-800 underline"
+                      >
+                        View document
+                      </a>
+                    ) : (
+                      <span className="text-gray-500">Not uploaded</span>
+                    )}
+                  </p>
+                  <p>
+                    Certificate / reference:{' '}
+                    {selectedMaid.certificate ? (
+                      <a
+                        href={selectedMaid.certificate}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-primary-600 hover:text-primary-800 underline"
+                      >
+                        View certificate
+                      </a>
+                    ) : (
+                      <span className="text-gray-500">Not uploaded</span>
+                    )}
+                  </p>
+                </div>
+              </div>
+
               {/* Services Offered */}
               {selectedMaid.skills && (
                 <div>

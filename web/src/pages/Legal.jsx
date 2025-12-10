@@ -47,17 +47,22 @@ const Legal = () => {
               </Link>
             </div>
 
-            <div className="flex items-center justify-between p-4 rounded-xl border border-dashed border-gray-200 bg-gray-50/40">
+            <div className="flex items-center justify-between p-4 rounded-xl border border-gray-100 bg-gray-50/40">
               <div className="flex items-center gap-3">
                 <div className="h-9 w-9 rounded-full bg-white border border-gray-200 flex items-center justify-center">
-                  <FileText className="h-4 w-4 text-gray-400" />
+                  <FileText className="h-4 w-4 text-primary-600" />
                 </div>
                 <div>
                   <p className="text-sm font-medium text-gray-900">Privacy Policy</p>
-                  <p className="text-xs text-gray-500">How we handle your data. Coming soon — we will add details here.</p>
+                  <p className="text-xs text-gray-500">How we collect, use and protect your information on MaidMatch.</p>
                 </div>
               </div>
-              <span className="text-[11px] font-medium text-gray-400 uppercase tracking-wide">Coming soon</span>
+              <Link
+                to="/privacy"
+                className="text-xs font-medium text-primary-600 hover:text-primary-700 underline"
+              >
+                View policy
+              </Link>
             </div>
           </div>
         </div>

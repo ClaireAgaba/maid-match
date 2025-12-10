@@ -108,6 +108,40 @@ const MyNurseProfile = () => {
           <Row label="Preferred working hours" value={profile.preferred_working_hours} />
           <Row label="Emergency availability" value={profile.emergency_availability ? 'Yes' : 'No'} />
           <Row label="Location" value={profile.location} />
+          <Row
+            label="ID Document"
+            value={
+              profile.id_document
+                ? (
+                  <a
+                    href={toImgUrl(profile.id_document)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary-600 hover:text-primary-700 underline"
+                  >
+                    View document
+                  </a>
+                )
+                : null
+            }
+          />
+          <Row
+            label="Nursing certificate / diploma"
+            value={
+              profile.nursing_certificate
+                ? (
+                  <a
+                    href={toImgUrl(profile.nursing_certificate)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary-600 hover:text-primary-700 underline"
+                  >
+                    View document
+                  </a>
+                )
+                : null
+            }
+          />
         </div>
 
         <div className="card">

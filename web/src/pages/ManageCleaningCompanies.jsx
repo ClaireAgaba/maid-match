@@ -155,6 +155,27 @@ const ManageCleaningCompanies = () => {
                   <p className="text-sm text-gray-600">No services listed.</p>
                 )}
               </div>
+
+              <div>
+                <h4 className="font-semibold text-gray-900 mb-2">Documents</h4>
+                <div className="space-y-1 text-sm">
+                  <p>
+                    Company ID / registration:{' '}
+                    {selectedCompany.id_document ? (
+                      <a
+                        href={selectedCompany.id_document}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-primary-600 hover:text-primary-800 underline"
+                      >
+                        View document
+                      </a>
+                    ) : (
+                      <span className="text-gray-500">Not uploaded</span>
+                    )}
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
         </div>

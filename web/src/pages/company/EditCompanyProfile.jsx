@@ -43,10 +43,10 @@ const EditCompanyProfile = () => {
     const company_name = form.company_name.value.trim();
     const location = form.location.value.trim();
     const services = Array.from(form.querySelectorAll('input[name="svc"]:checked')).map(el => Number(el.value));
-    const payload = { company_name, location };
-    if (services.length > 0) payload.services = services;
+    const idDocumentFile = form.id_document?.files?.[0] || null;
 
     // Build service_pricing from selected services and serviceRates
+    let service_pricing;
     if (cats && services.length > 0) {
       const idToName = {};
       Object.values(cats).forEach(items => {
@@ -63,13 +63,21 @@ const EditCompanyProfile = () => {
         }
       });
       if (lines.length > 0) {
-        payload.service_pricing = lines.join('\n');
+        service_pricing = lines.join('\n');
       }
     }
+
+    const fd = new FormData();
+    fd.append('company_name', company_name);
+    fd.append('location', location);
+    services.forEach((id) => fd.append('services', id));
+    if (service_pricing) fd.append('service_pricing', service_pricing);
+    if (idDocumentFile) fd.append('id_document', idDocumentFile);
+
     setSaving(true);
     try {
       await authAPI.getCsrfToken();
-      await cleaningCompanyAPI.meUpdate(payload);
+      await cleaningCompanyAPI.meUpdate(fd);
       navigate('/company/profile');
     } catch (err) {
       alert('Failed to update company');
@@ -101,6 +109,31 @@ const EditCompanyProfile = () => {
           <div>
             <label className="block text-sm font-medium mb-1">Location</label>
             <input name="location" className="input-field" defaultValue={profile.location} placeholder="Location" />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium mb-1">Company ID / Registration document</label>
+            {profile.id_document && (
+              <p className="text-xs text-gray-600 mb-1">
+                Current document:{' '}
+                <a
+                  href={profile.id_document}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-primary-600 hover:text-primary-800 underline"
+                >
+                  View document
+                </a>
+              </p>
+            )}
+            <input
+              type="file"
+              name="id_document"
+              className="block w-full text-sm text-gray-700"
+              accept=".pdf,.jpg,.jpeg,.png,.heic,.heif"
+            />
           </div>
         </div>
 
