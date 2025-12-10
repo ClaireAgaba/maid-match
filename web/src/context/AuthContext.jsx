@@ -15,16 +15,25 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // Detect if we are running inside a Capacitor native shell.
+  // In the Android/iOS app, window.Capacitor is injected; in normal web it is undefined.
+  const isNativeApp = typeof window !== 'undefined' && !!window.Capacitor;
+
+  const getStorage = () => {
+    return isNativeApp ? localStorage : sessionStorage;
+  };
+
   useEffect(() => {
     // Check if user is logged in on mount
-    const storedUser = localStorage.getItem('user');
+    const storage = getStorage();
+    const storedUser = storage.getItem('user');
     if (storedUser) {
       try {
         const parsed = JSON.parse(storedUser);
         setUser(parsed);
       } catch (e) {
         // Clear corrupted user data that can't be parsed
-        localStorage.removeItem('user');
+        storage.removeItem('user');
       }
     }
     setLoading(false);
@@ -35,11 +44,12 @@ export const AuthProvider = ({ children }) => {
       const response = await authAPI.login(credentials);
       const userData = response.data.user;
       const accessToken = response.data.access;
+      const storage = getStorage();
       if (accessToken) {
-        localStorage.setItem('accessToken', accessToken);
+        storage.setItem('accessToken', accessToken);
       }
       setUser(userData);
-      localStorage.setItem('user', JSON.stringify(userData));
+      storage.setItem('user', JSON.stringify(userData));
       return { success: true, user: userData };
     } catch (error) {
       return {
@@ -66,11 +76,12 @@ export const AuthProvider = ({ children }) => {
       const response = await authAPI.verifyLoginPin({ phone_number, pin });
       const userData = response.data.user;
       const accessToken = response.data.access;
+      const storage = getStorage();
       if (accessToken) {
-        localStorage.setItem('accessToken', accessToken);
+        storage.setItem('accessToken', accessToken);
       }
       setUser(userData);
-      localStorage.setItem('user', JSON.stringify(userData));
+      storage.setItem('user', JSON.stringify(userData));
       return { success: true, user: userData };
     } catch (error) {
       return {
@@ -88,8 +99,9 @@ export const AuthProvider = ({ children }) => {
       // access token so that follow-up API calls during registration (e.g.
       // creating cleaning company or home nurse profiles) are authenticated.
       const accessToken = response.data.access;
+      const storage = getStorage();
       if (accessToken) {
-        localStorage.setItem('accessToken', accessToken);
+        storage.setItem('accessToken', accessToken);
       }
 
       return { success: true, data: response.data };
@@ -108,8 +120,11 @@ export const AuthProvider = ({ children }) => {
       console.error('Logout error:', error);
     } finally {
       setUser(null);
+      // Clear from both storages to keep state consistent between web and native
       localStorage.removeItem('user');
       localStorage.removeItem('accessToken');
+      sessionStorage.removeItem('user');
+      sessionStorage.removeItem('accessToken');
     }
   };
 

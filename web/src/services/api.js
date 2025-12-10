@@ -15,10 +15,17 @@ const api = axios.create({
   },
 });
 
+// Helper to get current token from storage
+const getStoredToken = () => {
+  const tokenFromLocal = localStorage.getItem('accessToken');
+  if (tokenFromLocal) return tokenFromLocal;
+  return sessionStorage.getItem('accessToken');
+};
+
 // Request interceptor: attach JWT access token if present
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('accessToken');
+    const token = getStoredToken();
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -38,7 +45,12 @@ api.interceptors.response.use(
     if (error.response?.status === 401) {
       // Handle unauthorized access
       localStorage.removeItem('user');
-      window.location.href = '/login';
+      localStorage.removeItem('accessToken');
+      sessionStorage.removeItem('user');
+      sessionStorage.removeItem('accessToken');
+      if (window.location.pathname !== '/login') {
+        window.location.href = '/login';
+      }
     }
     return Promise.reject(error);
   }
