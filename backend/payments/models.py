@@ -2,6 +2,7 @@ from django.db import models
 from django.conf import settings
 from maid.models import MaidProfile
 from homeowner.models import HomeownerProfile
+from cleaning_company.models import CleaningCompany
 
 
 class MobileMoneyTransaction(models.Model):
@@ -28,16 +29,21 @@ class MobileMoneyTransaction(models.Model):
     PURPOSE_HOMEOWNER_LIVE_IN = "homeowner_live_in"
     PURPOSE_HOMEOWNER_MONTHLY = "homeowner_monthly"
     PURPOSE_HOMEOWNER_DAY_PASS = "homeowner_day_pass"
+    PURPOSE_COMPANY_MONTHLY = "company_monthly"
+    PURPOSE_COMPANY_ANNUAL = "company_annual"
 
     PURPOSE_CHOICES = (
         (PURPOSE_MAID_ONBOARDING, "Maid onboarding fee"),
         (PURPOSE_HOMEOWNER_LIVE_IN, "Homeowner live-in placement fee"),
         (PURPOSE_HOMEOWNER_MONTHLY, "Homeowner monthly subscription"),
         (PURPOSE_HOMEOWNER_DAY_PASS, "Homeowner 24h access pass"),
+        (PURPOSE_COMPANY_MONTHLY, "Cleaning company monthly plan"),
+        (PURPOSE_COMPANY_ANNUAL, "Cleaning company annual plan"),
     )
 
     maid = models.ForeignKey(MaidProfile, on_delete=models.CASCADE, related_name="payments", null=True, blank=True)
     homeowner = models.ForeignKey(HomeownerProfile, on_delete=models.CASCADE, related_name="payments", null=True, blank=True)
+    company = models.ForeignKey(CleaningCompany, on_delete=models.CASCADE, related_name="payments", null=True, blank=True)
     network = models.CharField(max_length=10, choices=NETWORK_CHOICES)
     phone_number = models.CharField(max_length=20)
     amount = models.DecimalField(max_digits=12, decimal_places=2)
@@ -54,5 +60,5 @@ class MobileMoneyTransaction(models.Model):
         ordering = ["-created_at"]
 
     def __str__(self) -> str:
-        target = self.maid or self.homeowner
+        target = self.maid or self.homeowner or self.company
         return f"MOMO {self.id} - {self.network} {self.amount} {self.status} ({self.purpose}) for {target}"

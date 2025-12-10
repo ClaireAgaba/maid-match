@@ -72,8 +72,12 @@ class CleaningCompanyMinimalSerializer(serializers.ModelSerializer):
             "company_name",
             "location",
             "verified",
+            "is_paused",
             "services",
             "service_pricing",
+            "has_active_subscription",
+            "subscription_type",
+            "subscription_expires_at",
             "display_photo_url",
             "username",
             "user_id",
@@ -115,7 +119,7 @@ class CleaningCompanyUpdateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = CleaningCompany
-        fields = ["company_name", "location", "services", "display_photo", "service_pricing"]
+        fields = ["company_name", "location", "services", "display_photo", "service_pricing", "is_paused"]
 
     def update(self, instance, validated_data):
         services = validated_data.pop("services", None)

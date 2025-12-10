@@ -135,6 +135,8 @@ export const cleaningCompanyAPI = {
   adminBulk: (data) => api.post('/cleaning-company/admin/companies/bulk/', data),
   browse: (params) => api.get('/cleaning-company/browse/', { params }),
   publicGallery: (companyId) => api.get(`/cleaning-company/public/${companyId}/gallery/`),
+  pauseMe: (data) => api.patch('/cleaning-company/me/', data),
+  deactivateMe: () => api.post('/cleaning-company/me/deactivate/'),
 };
 
 // Home Nursing API
@@ -166,6 +168,8 @@ export const supportAPI = {
 export const paymentAPI = {
   initiateMaidOnboarding: (payload) => api.post('/payments/maid-onboarding/initiate/', payload),
   initiateHomeownerPayment: (payload) => api.post('/payments/homeowner/initiate/', payload),
+  // Cleaning company payment plans (monthly/annual subscriptions)
+  initiateCompanyPayment: (payload) => api.post('/payments/cleaning-company/initiate/', payload),
 };
 
 // Live Location API

@@ -109,6 +109,32 @@ class MyCleaningCompanyLocationView(APIView):
         return Response({"status": "ok"})
 
 
+class MyCleaningCompanyDeactivateView(APIView):
+    """Allow a cleaning company to deactivate their own account.
+
+    Deletes the company profile and deactivates the associated user account so
+    they no longer receive or see jobs.
+    """
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        company = CleaningCompany.objects.filter(user=request.user).first()
+        if not company:
+            return Response(
+                {"detail": "Cleaning company profile not found for this user."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        user = request.user
+        # Delete the company profile and deactivate the underlying user.
+        company.delete()
+        user.is_active = False
+        user.save(update_fields=["is_active"])
+
+        return Response({"detail": "Account deactivated successfully."}, status=status.HTTP_200_OK)
+
+
 class PublicCompanyGalleryListView(generics.ListAPIView):
     """Public, read-only gallery for a given cleaning company.
 

@@ -99,6 +99,13 @@ const Dashboard = () => {
   const [onboardingPhone, setOnboardingPhone] = useState('');
   const [onboardingSubmitting, setOnboardingSubmitting] = useState(false);
   const [onboardingMessage, setOnboardingMessage] = useState('');
+  // cleaning company payment modal state
+  const [showCompanyPaymentModal, setShowCompanyPaymentModal] = useState(false);
+  const [companyPaymentPlan, setCompanyPaymentPlan] = useState('monthly'); // 'monthly' | 'annual'
+  const [companyPaymentNetwork, setCompanyPaymentNetwork] = useState('mtn');
+  const [companyPaymentPhone, setCompanyPaymentPhone] = useState('');
+  const [companyPaymentSubmitting, setCompanyPaymentSubmitting] = useState(false);
+  const [companyPaymentMessage, setCompanyPaymentMessage] = useState('');
   const [supportTickets, setSupportTickets] = useState([]);
   const [directoryRows, setDirectoryRows] = useState([]);
   const [directoryLoading, setDirectoryLoading] = useState(false);
@@ -856,6 +863,29 @@ const Dashboard = () => {
         });
       });
     }
+    // Cleaning company alerts
+    if (user?.user_type === 'cleaning_company' && companyProfile) {
+      if (!companyProfile.has_active_subscription) {
+        items.push({
+          id: 'company-no-plan',
+          kind: 'billing',
+          title: 'No active company plan',
+          body: 'Activate a monthly plan so you can show interest in cleaning jobs.',
+          onClick: () => {
+            setShowCompanyPaymentModal(true);
+          },
+        });
+      }
+      if (companyProfile.is_paused) {
+        items.push({
+          id: 'company-paused',
+          kind: 'status',
+          title: 'You are taking a break',
+          body: 'Resume your company so you can see and apply for jobs again.',
+          onClick: () => navigate('/company/profile'),
+        });
+      }
+    }
     return items;
   })();
 
@@ -1062,6 +1092,126 @@ const Dashboard = () => {
           </div>
         )}
 
+        {/* Cleaning Company: Payment modal */}
+        {user?.user_type === 'cleaning_company' && showCompanyPaymentModal && (
+          <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 px-4">
+            <div className="bg-white rounded-2xl shadow-xl max-w-md w-full">
+              <div className="flex items-center justify-between px-5 py-4 border-b">
+                <h3 className="text-lg font-semibold text-gray-900">Activate Company Plan</h3>
+                <button
+                  type="button"
+                  className="text-gray-400 hover:text-gray-600"
+                  onClick={() => {
+                    setShowCompanyPaymentModal(false);
+                    setCompanyPaymentMessage('');
+                  }}
+                >
+                  ✕
+                </button>
+              </div>
+              <div className="px-5 py-4 space-y-4">
+                <p className="text-sm text-gray-600">
+                  Choose a plan and pay via Mobile Money. Paid plans let your company show interest in homeowner job requests.
+                </p>
+                {companyPaymentMessage && (
+                  <p className="text-sm bg-red-50 border border-red-200 text-red-800 rounded-lg px-3 py-2">
+                    {companyPaymentMessage}
+                  </p>
+                )}
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Plan</label>
+                    <div className="flex items-center gap-3 text-sm">
+                      <label className="flex items-center gap-1">
+                        <input
+                          type="radio"
+                          name="company-plan"
+                          value="monthly"
+                          checked={companyPaymentPlan === 'monthly'}
+                          onChange={() => setCompanyPaymentPlan('monthly')}
+                        />
+                        <span>Monthly — <span className="font-semibold">UGX 30,000</span></span>
+                      </label>
+                      <label
+                        className="flex items-center gap-1 opacity-60 cursor-not-allowed"
+                        title="Annual plan coming soon"
+                      >
+                        <input
+                          type="radio"
+                          name="company-plan"
+                          value="annual"
+                          disabled
+                        />
+                        <span>Annual — <span className="font-semibold">UGX 342,000</span> (coming soon)</span>
+                      </label>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Network</label>
+                    <select
+                      className="input-field text-sm"
+                      value={companyPaymentNetwork}
+                      onChange={(e) => setCompanyPaymentNetwork(e.target.value)}
+                    >
+                      <option value="mtn">MTN Mobile Money</option>
+                      <option value="airtel">Airtel Money</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Mobile Money number</label>
+                    <input
+                      type="tel"
+                      className="input-field text-sm"
+                      value={companyPaymentPhone}
+                      onChange={(e) => setCompanyPaymentPhone(e.target.value)}
+                      placeholder="e.g. 0771234567"
+                    />
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  disabled={companyPaymentSubmitting}
+                  className="w-full btn-primary text-sm flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed mt-2"
+                  onClick={async () => {
+                    if (!companyPaymentPhone.trim()) {
+                      setCompanyPaymentMessage('Please enter the mobile number you are paying from.');
+                      return;
+                    }
+                    setCompanyPaymentSubmitting(true);
+                    setCompanyPaymentMessage('');
+                    try {
+                      const res = await paymentAPI.initiateCompanyPayment({
+                        plan: companyPaymentPlan,
+                        network: companyPaymentNetwork,
+                        phone_number: companyPaymentPhone.trim(),
+                      });
+                      const msg =
+                        res.data?.message ||
+                        'We have sent your payment request to Pesapal. Follow the Pesapal page to complete payment.';
+                      setCompanyPaymentMessage(msg);
+                      const redirectUrl = res.data?.redirect_url;
+                      if (redirectUrl) {
+                        window.open(redirectUrl, '_blank', 'noopener,noreferrer');
+                      }
+                    } catch (err) {
+                      const data = err.response?.data;
+                      let msg = data?.error || data?.detail || 'Failed to start payment. Please try again.';
+                      setCompanyPaymentMessage(msg);
+                    } finally {
+                      setCompanyPaymentSubmitting(false);
+                    }
+                  }}
+                >
+                  {companyPaymentSubmitting ? 'Starting payment...' : 'Pay now'}
+                </button>
+                <p className="text-[11px] text-gray-500 mt-1">
+                  You will receive a Mobile Money prompt on your phone to enter your PIN. MaidMatch does not see or store your PIN.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Maid: Onboarding payment modal */}
         {isMaid && showOnboardingPaymentModal && (
           <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 px-4">
@@ -1209,8 +1359,17 @@ const Dashboard = () => {
                         <div className="flex gap-2 mt-1">
                           <button
                             type="button"
-                            className="px-3 py-1 rounded-full text-xs font-medium bg-primary-600 text-white hover:bg-primary-700"
+                            disabled={!companyProfile?.has_active_subscription || companyProfile?.is_paused}
+                            className={`px-3 py-1 rounded-full text-xs font-medium text-white ${companyProfile?.has_active_subscription && !companyProfile?.is_paused ? 'bg-primary-600 hover:bg-primary-700' : 'bg-gray-300 cursor-not-allowed'}`}
                             onClick={async () => {
+                              if (companyProfile?.is_paused) {
+                                alert('Your company is currently taking a break, so you cannot show interest in jobs. Resume from your profile when you are ready.');
+                                return;
+                              }
+                              if (!companyProfile?.has_active_subscription) {
+                                alert('You need an active payment plan to show interest in jobs.');
+                                return;
+                              }
                               try {
                                 const note = window.prompt(
                                   'Write a short message to the homeowner about why your company is a good fit for this job (optional):',
@@ -1683,6 +1842,32 @@ const Dashboard = () => {
                     {companyProfile.verified ? 'Verified' : 'Not Verified'}
                   </span>
                 </div>
+                <div className="mt-2 text-xs text-gray-600">
+                  <span className="font-semibold">Payment plan status: </span>
+                  {(() => {
+                    const hasSub = companyProfile.has_active_subscription;
+                    const type = companyProfile.subscription_type;
+                    const exp = companyProfile.subscription_expires_at ? new Date(companyProfile.subscription_expires_at) : null;
+                    if (hasSub && exp && exp > new Date()) {
+                      if (type === 'annual') {
+                        return `Annual plan active until ${exp.toLocaleDateString()}`;
+                      }
+                      if (type === 'monthly') {
+                        return `Monthly plan active until ${exp.toLocaleDateString()}`;
+                      }
+                    }
+                    return 'No active plan. Activate a plan so you can show interest in jobs.';
+                  })()}
+                </div>
+                {!companyProfile.has_active_subscription && (
+                  <button
+                    type="button"
+                    onClick={() => setShowCompanyPaymentModal(true)}
+                    className="mt-1 inline-flex items-center text-[11px] font-medium text-primary-600 hover:text-primary-700 underline"
+                  >
+                    Activate plan
+                  </button>
+                )}
               </div>
               <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
                 <button className="btn-secondary flex items-center justify-center w-full sm:w-auto" onClick={() => navigate('/company/profile')}>
@@ -1717,6 +1902,95 @@ const Dashboard = () => {
             ) : (
               <p className="text-sm text-gray-600">No services listed yet.</p>
             )}
+          </div>
+        )}
+
+        {/* Cleaning Company: Gallery row */}
+        {user?.user_type === 'cleaning_company' && (
+          <div className="card mb-8">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-xl font-semibold text-gray-900">Company Gallery</h3>
+                <p className="text-xs text-gray-500">Showcase photos of your work. These images are stored on this device only.</p>
+              </div>
+            </div>
+            <div className="flex flex-col md:flex-row md:items-start gap-4">
+              <div className="w-full md:w-72">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Add photos</label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  className="block w-full text-sm text-gray-700 file:mr-3 file:py-2 file:px-3 file:rounded-md file:border file:border-gray-200 file:text-sm file:font-medium file:bg-white file:text-gray-700 hover:file:bg-gray-50"
+                  disabled={galleryUploading}
+                  onChange={async (e) => {
+                    const files = Array.from(e.target.files || []);
+                    if (!files.length) return;
+                    setGalleryUploading(true);
+                    try {
+                      const now = Date.now();
+                      const newItems = files.map((file, idx) => ({
+                        id: `${now}_${idx}_${file.name}`,
+                        image: URL.createObjectURL(file),
+                        caption: file.name,
+                      }));
+                      setCompanyGallery((prev) => {
+                        const existing = Array.isArray(prev) ? prev : [];
+                        const updated = [...newItems, ...existing];
+                        try {
+                          if (localGalleryKey) {
+                            localStorage.setItem(localGalleryKey, JSON.stringify(updated));
+                          }
+                        } catch {
+                          // ignore storage errors
+                        }
+                        return updated;
+                      });
+                      e.target.value = '';
+                    } finally {
+                      setGalleryUploading(false);
+                    }
+                  }}
+                />
+                {galleryUploading && (
+                  <p className="mt-2 text-xs text-gray-500">Uploading images...</p>
+                )}
+              </div>
+              <div className="flex-1">
+                {companyGallery && companyGallery.length > 0 ? (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                    {companyGallery.map((item, idx) => (
+                      <button
+                        key={item.id || idx}
+                        type="button"
+                        className="relative group rounded-lg overflow-hidden border border-gray-200 bg-gray-50 aspect-video flex items-center justify-center"
+                        onClick={() => {
+                          setViewerIndex(idx);
+                          setViewerOpen(true);
+                        }}
+                      >
+                        {item.image || item.image_url ? (
+                          <img
+                            src={item.image || item.image_url}
+                            alt={item.caption || 'work photo'}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <span className="text-xs text-gray-500">No image</span>
+                        )}
+                        {item.caption && (
+                          <div className="absolute inset-x-0 bottom-0 bg-black/50 text-[10px] text-white px-2 py-1 truncate">
+                            {item.caption}
+                          </div>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-600">No gallery images yet. Use the uploader to add some photos.</p>
+                )}
+              </div>
+            </div>
           </div>
         )}
 
@@ -2247,6 +2521,10 @@ const Dashboard = () => {
               <>
                 <button
                   onClick={async () => {
+                    if (companyProfile?.is_paused) {
+                      alert('Your company is currently taking a break. Resume from your profile to browse jobs again.');
+                      return;
+                    }
                     setShowCompanyJobsModal(true);
                     await loadCompanyJobs();
                   }}
@@ -2268,6 +2546,13 @@ const Dashboard = () => {
                 >
                   <HelpCircle className="w-8 h-8 text-primary-600 mx-auto mb-2" />
                   <p className="font-medium text-gray-900">Help &amp; Feedback</p>
+                </button>
+                <button
+                  onClick={() => navigate('/legal')}
+                  className="p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md hover:border-primary-200 hover:bg-primary-50/50 transition-all duration-200 group"
+                >
+                  <FileText className="w-8 h-8 text-primary-600 mx-auto mb-2" />
+                  <p className="font-medium text-gray-900">Legal</p>
                 </button>
               </>
             )}

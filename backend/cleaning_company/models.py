@@ -42,7 +42,23 @@ class CleaningCompany(models.Model):
     current_longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
     display_photo = models.ImageField(upload_to="company_photos/", blank=True, null=True)
     verified = models.BooleanField(default=False)
+    is_paused = models.BooleanField(
+        default=False,
+        help_text="If true, company is taking a break and will not see/receive jobs.",
+    )
     service_pricing = models.TextField(blank=True, null=True, help_text="Per-service starting pay in free text (one per line)")
+    # Subscription / payment status for access to homeowner job requests
+    has_active_subscription = models.BooleanField(default=False)
+    subscription_type = models.CharField(
+        max_length=20,
+        choices=(
+            ("monthly", "Monthly"),
+            ("annual", "Annual"),
+        ),
+        blank=True,
+        null=True,
+    )
+    subscription_expires_at = models.DateTimeField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

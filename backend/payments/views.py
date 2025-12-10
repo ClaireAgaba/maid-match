@@ -7,6 +7,7 @@ from decouple import config
 import requests
 from maid.models import MaidProfile
 from homeowner.models import HomeownerProfile
+from cleaning_company.models import CleaningCompany
 from .models import MobileMoneyTransaction
 
 
@@ -313,6 +314,154 @@ class HomeownerPaymentInitiateView(APIView):
         )
 
 
+class CleaningCompanyPaymentInitiateView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        user = request.user
+        try:
+            company = CleaningCompany.objects.get(user=user)
+        except CleaningCompany.DoesNotExist:
+            return Response({"error": "Only cleaning companies can use this payment option."}, status=status.HTTP_400_BAD_REQUEST)
+
+        plan = str(request.data.get("plan", "")).lower()
+        network = str(request.data.get("network", "")).lower()
+        phone_number = str(request.data.get("phone_number", "")).strip()
+
+        if network not in {MobileMoneyTransaction.NETWORK_MTN, MobileMoneyTransaction.NETWORK_AIRTEL}:
+            return Response({"error": "Invalid network. Choose MTN or Airtel."}, status=status.HTTP_400_BAD_REQUEST)
+        if not phone_number:
+            return Response({"error": "Phone number is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Determine amount and purpose based on plan
+        if plan == "monthly":
+            amount = Decimal("30000.00")
+            purpose = MobileMoneyTransaction.PURPOSE_COMPANY_MONTHLY
+            merchant_prefix = "CC-MONTH-"
+            description = "MaidMatch cleaning company monthly plan (UGX 30,000)"
+        elif plan == "annual":
+            # 12 * 30,000 with 5% discount = 342,000
+            amount = Decimal("342000.00")
+            purpose = MobileMoneyTransaction.PURPOSE_COMPANY_ANNUAL
+            merchant_prefix = "CC-ANNUAL-"
+            description = "MaidMatch cleaning company annual plan (UGX 342,000, 5% off)"
+        else:
+            return Response({"error": "Invalid plan. Use monthly or annual."}, status=status.HTTP_400_BAD_REQUEST)
+
+        tx = MobileMoneyTransaction.objects.create(
+            company=company,
+            network=network,
+            phone_number=phone_number,
+            amount=amount,
+            purpose=purpose,
+        )
+
+        pesapal_key = config("PESAPAL_CONSUMER_KEY", default="")
+        pesapal_secret = config("PESAPAL_CONSUMER_SECRET", default="")
+        ipn_id = config("PESAPAL_IPN_ID", default="6ebfe1ed-3b45-4c19-89e6-dafef0f898ea")
+        if not pesapal_key or not pesapal_secret:
+            return Response({"error": "Payment configuration missing on server."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        # Step 1: obtain bearer token
+        auth_url = "https://pay.pesapal.com/v3/api/Auth/RequestToken"
+        try:
+            auth_resp = requests.post(
+                auth_url,
+                json={
+                    "consumer_key": pesapal_key,
+                    "consumer_secret": pesapal_secret,
+                },
+                headers={
+                    "Accept": "application/json",
+                    "Content-Type": "application/json",
+                },
+                timeout=15,
+            )
+            auth_data = auth_resp.json() if auth_resp.content else {}
+        except Exception:
+            tx.status = MobileMoneyTransaction.STATUS_FAILED
+            tx.save(update_fields=["status"])
+            return Response({"error": "Failed to contact payment gateway."}, status=status.HTTP_502_BAD_GATEWAY)
+
+        token = auth_data.get("token")
+        if not token or auth_resp.status_code != 200:
+            tx.status = MobileMoneyTransaction.STATUS_FAILED
+            tx.save(update_fields=["status"])
+            return Response({"error": "Failed to authenticate with Pesapal."}, status=status.HTTP_502_BAD_GATEWAY)
+
+        # Step 2: submit order request
+        submit_url = "https://pay.pesapal.com/v3/api/Transactions/SubmitOrderRequest"
+        merchant_reference = f"{merchant_prefix}{tx.id}"
+        callback_url = config(
+            "PESAPAL_CALLBACK_URL",
+            default="https://maidmatch.pythonanywhere.com/pesapal/payment-complete/",
+        )
+        body = {
+            "id": merchant_reference,
+            "currency": "UGX",
+            "amount": float(amount),
+            "description": description,
+            "callback_url": callback_url,
+            "redirect_mode": 0,
+            "notification_id": ipn_id,
+            "branch": "MaidMatch",
+            "billing_address": {
+                "email_address": getattr(user, "email", ""),
+                "phone_number": phone_number,
+                "country_code": "UG",
+                "first_name": getattr(user, "first_name", "") or "Company",
+                "middle_name": "",
+                "last_name": getattr(user, "last_name", "") or str(user.username),
+                "line_1": company.location or "",
+                "line_2": "",
+                "city": "",
+                "state": "",
+                "postal_code": "",
+                "zip_code": "",
+            },
+        }
+
+        try:
+            submit_resp = requests.post(
+                submit_url,
+                json=body,
+                headers={
+                    "Accept": "application/json",
+                    "Content-Type": "application/json",
+                    "Authorization": f"Bearer {token}",
+                },
+                timeout=20,
+            )
+            submit_data = submit_resp.json() if submit_resp.content else {}
+        except Exception:
+            tx.status = MobileMoneyTransaction.STATUS_FAILED
+            tx.save(update_fields=["status"])
+            return Response({"error": "Failed to create payment with Pesapal."}, status=status.HTTP_502_BAD_GATEWAY)
+
+        order_tracking_id = submit_data.get("order_tracking_id")
+        redirect_url = submit_data.get("redirect_url")
+        if submit_resp.status_code != 200 or not order_tracking_id:
+            tx.status = MobileMoneyTransaction.STATUS_FAILED
+            tx.raw_callback = submit_data
+            tx.save(update_fields=["status", "raw_callback"])
+            return Response({"error": "Payment gateway did not accept the request."}, status=status.HTTP_502_BAD_GATEWAY)
+
+        tx.provider_reference = order_tracking_id
+        tx.raw_callback = submit_data
+        tx.save(update_fields=["provider_reference", "raw_callback"])
+
+        return Response(
+            {
+                "status": "pending",
+                "message": "We have sent your payment request to Pesapal. Follow the Pesapal page to complete payment.",
+                "transaction_id": tx.id,
+                "order_tracking_id": order_tracking_id,
+                "redirect_url": redirect_url,
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
+
 class PesapalIPNView(APIView):
     permission_classes = []
     authentication_classes = []
@@ -342,8 +491,8 @@ class PesapalIPNView(APIView):
                 if merchant_reference.startswith("MM-ONBOARD-"):
                     tx_id = int(merchant_reference.replace("MM-ONBOARD-", ""))
                     tx = MobileMoneyTransaction.objects.filter(id=tx_id).first()
-                elif merchant_reference.startswith("HM-LIVE-") or merchant_reference.startswith("HM-MONTH-") or merchant_reference.startswith("HM-DAY-"):
-                    # All homeowner payments also use transaction ID at the end
+                elif merchant_reference.startswith("HM-LIVE-") or merchant_reference.startswith("HM-MONTH-") or merchant_reference.startswith("HM-DAY-") or merchant_reference.startswith("CC-MONTH-") or merchant_reference.startswith("CC-ANNUAL-"):
+                    # All homeowner and company payments also use transaction ID at the end
                     tx_id = int(merchant_reference.split("-")[-1])
                     tx = MobileMoneyTransaction.objects.filter(id=tx_id).first()
             except (TypeError, ValueError):
@@ -422,6 +571,19 @@ class PesapalIPNView(APIView):
                     hp.subscription_type = HomeownerProfile.SUB_DAY_PASS
                     hp.subscription_expires_at = now + timedelta(days=1)
                 hp.save(update_fields=["subscription_type", "subscription_expires_at"])
+            elif tx.purpose in {MobileMoneyTransaction.PURPOSE_COMPANY_MONTHLY, MobileMoneyTransaction.PURPOSE_COMPANY_ANNUAL} and tx.company_id:
+                from datetime import timedelta
+
+                company = tx.company
+                now = timezone.now()
+                company.has_active_subscription = True
+                if tx.purpose == MobileMoneyTransaction.PURPOSE_COMPANY_MONTHLY:
+                    company.subscription_type = "monthly"
+                    company.subscription_expires_at = now + timedelta(days=30)
+                else:
+                    company.subscription_type = "annual"
+                    company.subscription_expires_at = now + timedelta(days=365)
+                company.save(update_fields=["has_active_subscription", "subscription_type", "subscription_expires_at"])
         elif payment_status in {"FAILED", "CANCELLED", "CANCELED"}:
             tx.status = MobileMoneyTransaction.STATUS_FAILED
             tx.completed_at = timezone.now()

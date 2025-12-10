@@ -1,11 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { cleaningCompanyAPI } from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
 
 const ViewCompanyProfile = () => {
   const navigate = useNavigate();
+  const { user, logout } = useAuth();
   const [profile, setProfile] = useState(null);
   const [gallery, setGallery] = useState([]);
+  const [actionLoading, setActionLoading] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -13,13 +16,33 @@ const ViewCompanyProfile = () => {
         const me = await cleaningCompanyAPI.me();
         setProfile(me.data);
       } catch {}
+
+      // Start with any gallery items stored locally from the dashboard
+      let localItems = [];
+      try {
+        const key = user?.username ? `company_gallery_${user.username}` : null;
+        if (key) {
+          const raw = localStorage.getItem(key);
+          if (raw) {
+            const arr = JSON.parse(raw);
+            if (Array.isArray(arr)) localItems = arr;
+          }
+        }
+      } catch {
+        // ignore localStorage errors
+      }
+
       try {
         const gal = await cleaningCompanyAPI.galleryList();
-        setGallery(Array.isArray(gal.data) ? gal.data : []);
-      } catch {}
+        const backendItems = Array.isArray(gal.data) ? gal.data : [];
+        // Prefer backend items first, but also include any local-only ones
+        setGallery([...backendItems, ...localItems]);
+      } catch {
+        setGallery(localItems);
+      }
     };
     load();
-  }, []);
+  }, [user?.username]);
 
   if (!profile) return (
     <div className="max-w-5xl mx-auto p-6">
@@ -44,6 +67,65 @@ const ViewCompanyProfile = () => {
         <div className="flex gap-2">
           <button className="btn-secondary" onClick={() => navigate('/dashboard')}>Back to Dashboard</button>
           <button className="btn-secondary" onClick={() => navigate('/company/profile/edit')}>Edit Profile</button>
+        </div>
+      </div>
+
+      <div className="card">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="text-sm text-gray-700">
+            <p className="font-semibold mb-1">Account status</p>
+            <p>
+              {profile.is_paused
+                ? 'You are currently taking a break. You will not see or receive new jobs until you resume.'
+                : 'Your account is active. You can browse and show interest in jobs (if your plan is active).'}
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              disabled={actionLoading}
+              className="btn-secondary text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              onClick={async () => {
+                if (!profile) return;
+                setActionLoading(true);
+                try {
+                  await cleaningCompanyAPI.pauseMe({ is_paused: !profile.is_paused });
+                  const refreshed = await cleaningCompanyAPI.me();
+                  setProfile(refreshed.data);
+                } catch (err) {
+                  console.error('Failed to toggle pause', err);
+                  alert('Could not update your break status. Please try again.');
+                } finally {
+                  setActionLoading(false);
+                }
+              }}
+            >
+              {profile.is_paused ? 'Resume from break' : 'Take a break'}
+            </button>
+            <button
+              type="button"
+              disabled={actionLoading}
+              className="btn-secondary text-sm border-red-200 text-red-700 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              onClick={async () => {
+                if (!window.confirm('Deactivate will delete your company profile and disable your login until support re-enables you. This cannot be undone. Continue?')) {
+                  return;
+                }
+                setActionLoading(true);
+                try {
+                  await cleaningCompanyAPI.deactivateMe();
+                  await logout();
+                  navigate('/login');
+                } catch (err) {
+                  console.error('Failed to deactivate account', err);
+                  alert('Could not deactivate your account. Please try again or contact support.');
+                } finally {
+                  setActionLoading(false);
+                }
+              }}
+            >
+              Deactivate account
+            </button>
+          </div>
         </div>
       </div>
 
