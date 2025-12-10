@@ -103,6 +103,29 @@ const ManageHomeowners = () => {
     return matchesSearch;
   });
 
+  const getPlanInfo = (profile) => {
+    if (!profile) return { typeLabel: 'No plan', statusLabel: 'No active plan' };
+    const type = profile.subscription_type || 'none';
+    const expRaw = profile.subscription_expires_at;
+    const hasLiveIn = !!profile.has_live_in_credit;
+    let typeLabel = 'No plan';
+    if (type === 'monthly') typeLabel = 'Monthly subscription';
+    else if (type === 'day_pass') typeLabel = '24 hour pass';
+    let statusLabel = 'No active plan';
+    if (type !== 'none' && expRaw) {
+      const exp = new Date(expRaw);
+      const now = new Date();
+      if (!Number.isNaN(exp.getTime()) && exp > now) {
+        statusLabel = `Active until ${exp.toLocaleDateString()}`;
+      } else {
+        statusLabel = 'Plan expired';
+      }
+    } else if (hasLiveIn) {
+      statusLabel = 'Live-in credit available';
+    }
+    return { typeLabel, statusLabel };
+  };
+
   const viewHomeownerDetails = (homeowner) => {
     setSelectedHomeowner(homeowner);
     setShowModal(true);
@@ -352,6 +375,61 @@ const ManageHomeowners = () => {
                     </div>
                   )}
                 </div>
+              </div>
+
+              {/* Verification Documents */}
+              {(selectedHomeowner.id_document || selectedHomeowner.lc_letter) && (
+                <div>
+                  <h4 className="font-semibold text-gray-900 mb-3">Verification Documents</h4>
+                  <div className="space-y-2 text-sm">
+                    {selectedHomeowner.id_document && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-600">ID document</span>
+                        <a
+                          href={selectedHomeowner.id_document}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-primary-600 hover:text-primary-700 underline text-xs font-medium"
+                        >
+                          View ID document
+                        </a>
+                      </div>
+                    )}
+                    {selectedHomeowner.lc_letter && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-600">LC / recommendation letter</span>
+                        <a
+                          href={selectedHomeowner.lc_letter}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-primary-600 hover:text-primary-700 underline text-xs font-medium"
+                        >
+                          View LC letter
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Payment Plan */}
+              <div>
+                <h4 className="font-semibold text-gray-900 mb-3">Payment Plan</h4>
+                {(() => {
+                  const { typeLabel, statusLabel } = getPlanInfo(selectedHomeowner);
+                  return (
+                    <div className="space-y-1 text-sm">
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-600">Current plan</span>
+                        <span className="font-medium text-gray-900">{typeLabel}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-600">Status</span>
+                        <span className="font-medium text-gray-900">{statusLabel}</span>
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
 
               {/* Registration Date */}
