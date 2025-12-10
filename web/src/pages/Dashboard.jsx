@@ -4,12 +4,12 @@ import { useAuth } from '../context/AuthContext';
 import BrandLogo from '../components/BrandLogo';
 import Navbar from '../components/Navbar';
 import { useLiveLocationUpdater } from '../hooks/useLiveLocationUpdater';
-import { maidAPI, homeownerAPI, authAPI, reviewAPI, cleaningCompanyAPI, homeNursingAPI, jobAPI, applicationAPI, paymentAPI } from '../services/api';
+import { maidAPI, homeownerAPI, authAPI, reviewAPI, cleaningCompanyAPI, homeNursingAPI, jobAPI, applicationAPI, paymentAPI, supportAPI } from '../services/api';
 import { 
   Briefcase, Users, Star, Settings, LogOut,
   Home, Calendar, DollarSign, TrendingUp, User,
   Shield, ShieldCheck, Ban, CircleOff, Eye,
-  CreditCard
+  CreditCard, HelpCircle, FileText
 } from 'lucide-react';
 
 const Dashboard = () => {
@@ -99,6 +99,7 @@ const Dashboard = () => {
   const [onboardingPhone, setOnboardingPhone] = useState('');
   const [onboardingSubmitting, setOnboardingSubmitting] = useState(false);
   const [onboardingMessage, setOnboardingMessage] = useState('');
+  const [supportTickets, setSupportTickets] = useState([]);
 
   const { status: liveLocationStatus, coords: liveLocationCoords, placeName: liveLocationPlace } = useLiveLocationUpdater(user);
   const liveLocationLabel = (() => {
@@ -158,6 +159,19 @@ const Dashboard = () => {
             setRecentMaids(Array.isArray(rm.data) ? rm.data : []);
           } catch (e) {
             // ignore
+          }
+
+          // Load support tickets for this homeowner (for notifications)
+          try {
+            const tRes = await supportAPI.listTickets();
+            const data = tRes.data;
+            let list = [];
+            if (Array.isArray(data)) list = data;
+            else if (data && Array.isArray(data.results)) list = data.results;
+            else if (data && typeof data === 'object' && data.id) list = [data];
+            setSupportTickets(list);
+          } catch (e) {
+            // Non-blocking: helpdesk notifications are optional
           }
         } catch (error) {
           console.error('Error fetching homeowner profile:', error);
@@ -240,6 +254,32 @@ const Dashboard = () => {
     }
   };
 
+  const handleAcceptApplication = async (application) => {
+    if (!isHomeowner || !application) return;
+    try {
+      await applicationAPI.accept(application.id);
+      if (jobResponsesFor) {
+        await loadJobResponses(jobResponsesFor);
+      }
+    } catch (e) {
+      console.error('Failed to accept application', e);
+      alert('Could not accept this application. Please try again.');
+    }
+  };
+
+  const handleRejectApplication = async (application) => {
+    if (!isHomeowner || !application) return;
+    try {
+      await applicationAPI.reject(application.id);
+      if (jobResponsesFor) {
+        await loadJobResponses(jobResponsesFor);
+      }
+    } catch (e) {
+      console.error('Failed to reject application', e);
+      alert('Could not reject this application. Please try again.');
+    }
+  };
+
   // Homeowner: open an existing job in edit mode
   const openEditJob = (job) => {
     if (!job) return;
@@ -300,6 +340,20 @@ const Dashboard = () => {
       console.error('Failed to reload homeowner jobs', e);
     } finally {
       setHomeownerJobsLoading(false);
+    }
+  };
+
+  // Homeowner: delete/cancel a job (service request)
+  const handleDeleteJob = async (job) => {
+    if (!isHomeowner || !job) return;
+    const confirmed = window.confirm('Are you sure you want to delete this request? This cannot be undone.');
+    if (!confirmed) return;
+    try {
+      await jobAPI.delete(job.id);
+      await reloadHomeownerJobs();
+    } catch (e) {
+      console.error('Failed to delete job', e);
+      alert('Could not delete this request. Please try again.');
     }
   };
 
@@ -636,9 +690,62 @@ const Dashboard = () => {
     return map;
   })();
 
+  // Homeowner: helper boolean indicating whether there is any active payment plan
+  const homeownerHasActivePlan = (() => {
+    if (!homeownerProfile) return false;
+    const hp = homeownerProfile;
+    const now = new Date();
+    const exp = hp.subscription_expires_at ? new Date(hp.subscription_expires_at) : null;
+    const hasSub = hp.subscription_type && hp.subscription_type !== 'none' && exp && exp > now;
+    if (hasSub) return true;
+    if (hp.has_live_in_credit) return true;
+    return false;
+  })();
+
+  const headerNotifications = (() => {
+    const items = [];
+    if (isHomeowner && homeownerProfile) {
+      if (!homeownerProfile.is_verified) {
+        items.push({
+          id: 'homeowner-verification',
+          kind: 'system',
+          title: 'Your homeowner account is not yet verified',
+          body: homeownerProfile.verification_notes || 'Please upload clear ID and LC documents so we can verify your account.',
+          onClick: () => navigate('/homeowner-profile-settings'),
+        });
+      }
+    }
+    if (isHomeowner && Array.isArray(homeownerJobs) && homeownerJobs.length > 0) {
+      homeownerJobs.forEach((job) => {
+        const count = job.applications_count || job.responses_count || 0;
+        if (!count) return;
+        items.push({
+          id: `job-${job.id}`,
+          kind: 'job responses',
+          title: `${job.title} has ${count} response${count > 1 ? 's' : ''}`,
+          body: 'Tap to review and accept a provider for this request.',
+          onClick: () => loadJobResponses(job),
+        });
+      });
+    }
+    if (isHomeowner && Array.isArray(supportTickets) && supportTickets.length > 0) {
+      supportTickets.forEach((t) => {
+        if (t.status && t.status !== 'open') return; // only open tickets
+        items.push({
+          id: `ticket-${t.id}`,
+          kind: 'support',
+          title: t.subject || 'Support ticket',
+          body: 'Tap to open your Help & Feedback conversation.',
+          onClick: () => navigate('/help-feedback'),
+        });
+      });
+    }
+    return items;
+  })();
+
   return (
     <div className="min-h-screen bg-gray-50/50">
-      <Navbar userProfile={activeProfile} />
+      <Navbar userProfile={activeProfile} notifications={headerNotifications} />
 
       {/* Welcome Header */}
       <div className="relative bg-white border-b border-gray-100 overflow-hidden">
@@ -672,9 +779,7 @@ const Dashboard = () => {
                 <Shield className="h-5 w-5 text-yellow-400" />
               </div>
               <div className="ml-3">
-                <h3 className="text-sm font-medium text-yellow-800">
-                  Account Pending Verification
-                </h3>
+                <h3 className="text-sm font-medium text-yellow-800">Account Pending Verification</h3>
                 <div className="mt-2 text-sm text-yellow-700">
                   <p>
                     Your account is currently under review. Please ensure you have uploaded all required documents
@@ -694,6 +799,7 @@ const Dashboard = () => {
           </div>
         )}
 
+        {/* Maid: Onboarding payment modal */}
         {isMaid && showOnboardingPaymentModal && (
           <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 px-4">
             <div className="bg-white rounded-2xl shadow-xl max-w-md w-full">
@@ -715,7 +821,7 @@ const Dashboard = () => {
                   Pay a one-time onboarding fee of <span className="font-semibold">UGX 5,000</span> via Mobile Money.
                 </p>
                 {onboardingMessage && (
-                  <p className="text-sm text-gray-700 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
+                  <p className="text-sm bg-red-50 border border-red-200 text-red-800 rounded-lg px-3 py-2">
                     {onboardingMessage}
                   </p>
                 )}
@@ -758,16 +864,24 @@ const Dashboard = () => {
                         network: onboardingNetwork,
                         phone_number: onboardingPhone.trim(),
                       });
-                      const msg = res.data?.message || 'We have sent your payment request to Pesapal. Follow the Pesapal page to complete payment.';
+                      const msg =
+                        res.data?.message ||
+                        'We have sent your payment request to Pesapal. Follow the Pesapal page to complete payment.';
                       setOnboardingMessage(msg);
                       const redirectUrl = res.data?.redirect_url;
                       if (redirectUrl) {
-                        // Open Pesapal checkout in a new tab so the user can complete the Mobile Money flow
                         window.open(redirectUrl, '_blank', 'noopener,noreferrer');
                       }
                     } catch (err) {
                       const data = err.response?.data;
-                      const msg = data?.error || data?.detail || 'Failed to start payment. Please try again.';
+                      let msg = data?.error || data?.detail || 'Failed to start payment. Please try again.';
+                      if (
+                        typeof msg === 'string' &&
+                        msg.includes('already have an onboarding payment in progress or completed')
+                      ) {
+                        msg =
+                          'You already have an onboarding payment that is in progress or has been recorded as paid. Please check your earlier payment or contact support if this seems wrong.';
+                      }
                       setOnboardingMessage(msg);
                     } finally {
                       setOnboardingSubmitting(false);
@@ -777,7 +891,8 @@ const Dashboard = () => {
                   {onboardingSubmitting ? 'Starting payment...' : 'Pay UGX 5,000'}
                 </button>
                 <p className="text-[11px] text-gray-500 mt-1">
-                  You will receive a Mobile Money prompt on your phone to enter your PIN. MaidMatch does not see or store your PIN.
+                  You will receive a Mobile Money prompt on your phone to enter your PIN. MaidMatch does not see or
+                  store your PIN.
                 </p>
               </div>
             </div>
@@ -822,8 +937,8 @@ const Dashboard = () => {
                               )}
                               {job.status && (
                                 <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-gray-100 text-gray-700 text-[11px] font-medium">
-                                  {job.status}
-                                </span>
+                                {job.status}
+                              </span>
                               )}
                             </div>
                           </div>
@@ -834,7 +949,9 @@ const Dashboard = () => {
                             className="px-3 py-1 rounded-full text-xs font-medium bg-primary-600 text-white hover:bg-primary-700"
                             onClick={async () => {
                               try {
-                                const note = window.prompt('Write a short message to the homeowner about why your company is a good fit for this job (optional):');
+                                const note = window.prompt(
+                                  'Write a short message to the homeowner about why your company is a good fit for this job (optional):',
+                                );
                                 await applicationAPI.create({
                                   job: job.id,
                                   cover_letter: note || '',
@@ -1106,6 +1223,180 @@ const Dashboard = () => {
           </div>
         )}
 
+        {/* Maid: Profile row */}
+        {isMaid && maidProfile && (
+          <div className="card mb-8">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-6 space-y-4 sm:space-y-0">
+              <div className="relative flex-shrink-0">
+                <div className="h-24 w-24 rounded-full overflow-hidden border-4 border-gray-200 shadow-lg">
+                  {maidProfile.profile_photo ? (
+                    <img
+                      src={maidProfile.profile_photo}
+                      alt={maidProfile.full_name || maidProfile.user?.username}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <div className="h-full w-full bg-gradient-to-br from-primary-400 to-secondary-600 flex items-center justify-center">
+                      <User className="h-12 w-12 text-white" />
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="flex-1">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div>
+                    <h3 className="text-2xl font-bold text-gray-900">
+                      {maidProfile.full_name || maidProfile.user?.full_name || maidProfile.user?.username}
+                    </h3>
+                    <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-gray-600">
+                      {maidProfile.location && (
+                        <span className="inline-flex items-center gap-1">
+                          <Home className="h-4 w-4" />
+                          {maidProfile.location}
+                        </span>
+                      )}
+                      {liveLocationLabel && (
+                        <p className="mt-1 text-xs text-gray-500">
+                          {liveLocationLabel}
+                        </p>
+                      )}
+                      {maidAge !== null && (
+                        <span>Age: {maidAge}</span>
+                      )}
+                      {maidProfile.user?.gender && (
+                        <span>
+                          Gender: {maidProfile.user.gender.charAt(0).toUpperCase() + maidProfile.user.gender.slice(1)}
+                        </span>
+                      )}
+                      {maidProfile.category && (
+                        <span>
+                          Category: {maidProfile.category === 'live_in' ? 'Live-in' : maidProfile.category === 'temporary' ? 'Temporary' : 'Placement'}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-start sm:items-end gap-2">
+                    <div className="flex flex-wrap gap-2">
+                      <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium ${maidProfile.is_verified ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                        {maidProfile.is_verified ? (
+                          <>
+                            <ShieldCheck className="h-3.5 w-3.5" /> Verified
+                          </>
+                        ) : (
+                          <>
+                            <Shield className="h-3.5 w-3.5" /> Not Verified
+                          </>
+                        )}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          try {
+                            const next = !maidProfile.availability_status;
+                            await maidAPI.updateMyProfile({ availability_status: next });
+                            setMaidProfile((prev) => (prev ? { ...prev, availability_status: next } : prev));
+                          } catch (e) {
+                            alert('Could not update your availability. Please try again.');
+                          }
+                        }}
+                        className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium border transition-colors ${maidProfile.availability_status ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100' : 'bg-gray-100 text-gray-700 border-gray-200 hover:bg-gray-200'}`}
+                      >
+                        {maidProfile.availability_status ? 'Available for work (tap to hide)' : 'Not currently available (tap to show)'}
+                      </button>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-gray-700 mt-1">
+                      <Star className="h-4 w-4 text-yellow-400" />
+                      <span>{maidProfile.rating ?? '0.0'} / 5.0</span>
+                      <span className="text-xs text-gray-500">
+                        ({maidProfile.total_jobs_completed || 0} jobs completed)
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => navigate('/profile-settings')}
+                      className="mt-3 btn-secondary flex items-center justify-center text-sm px-4 py-2"
+                    >
+                      <Settings className="h-4 w-4 mr-2" />
+                      Edit Profile
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Maid: Onboarding payment card */}
+        {isMaid && maidProfile && (
+          <div className="card mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-1">Onboarding fee</h3>
+              {maidProfile.onboarding_fee_paid ? (
+                <p className="text-sm text-gray-600">
+                  Your one-time onboarding fee has been recorded
+                  {maidProfile.onboarding_fee_paid_at && (
+                    <>
+                      {' '}as paid on{' '}
+                      {new Date(maidProfile.onboarding_fee_paid_at).toLocaleString()}
+                    </>
+                  )}.
+                </p>
+              ) : (
+                <p className="text-sm text-gray-600">
+                  Pay a one-time onboarding fee of <span className="font-semibold">UGX 5,000</span> to complete your account setup and start applying for jobs.
+                </p>
+              )}
+            </div>
+            <div className="flex flex-col items-start sm:items-end gap-2">
+              {maidProfile.onboarding_fee_paid ? (
+                <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium bg-green-50 text-green-700 border border-green-200">
+                  <ShieldCheck className="h-3.5 w-3.5" /> Onboarding fee paid
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOnboardingMessage('');
+                    setShowOnboardingPaymentModal(true);
+                  }}
+                  className="btn-primary text-sm flex items-center justify-center px-4 py-2"
+                >
+                  Pay onboarding fee (UGX 5,000)
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Maid: Services Offered row */}
+        {isMaid && maidProfile && (
+          <div className="card mb-8">
+            <h3 className="text-xl font-semibold text-gray-900 mb-3">Services Offered</h3>
+            {maidProfile.skills ? (
+              <div className="flex flex-wrap gap-2">
+                {maidProfile.skills
+                  .split(',')
+                  .map((s) => s.trim())
+                  .filter((s) => s.length > 0)
+                  .map((s) => {
+                    const rate = maidServiceRates[s];
+                    return (
+                      <span
+                        key={s}
+                        className="px-3 py-1 bg-gray-100 text-gray-800 rounded-full text-sm"
+                      >
+                        {s}
+                        {rate ? ` (Starting Service fee: ${rate})` : ''}
+                      </span>
+                    );
+                  })}
+              </div>
+            ) : (
+              <p className="text-sm text-gray-600">No services listed yet.</p>
+            )}
+          </div>
+        )}
+
         {/* Cleaning Company: Profile row */}
         {user?.user_type === 'cleaning_company' && companyProfile && (
           <div className="card mb-8">
@@ -1257,27 +1548,36 @@ const Dashboard = () => {
                       </div>
                       <div>
                         <p className="text-xs text-gray-500 uppercase font-semibold tracking-wider">Payment plan status</p>
-                        <p className="text-sm font-medium text-gray-900">
-                          {(() => {
-                            const hp = homeownerProfile;
-                            if (!hp) return 'No active plan';
-                            const now = new Date();
-                            const exp = hp.subscription_expires_at ? new Date(hp.subscription_expires_at) : null;
-                            const hasSub = hp.subscription_type && hp.subscription_type !== 'none' && exp && exp > now;
-                            if (hasSub) {
-                              if (hp.subscription_type === 'monthly') {
-                                return `Monthly subscription active until ${exp.toLocaleDateString()}`;
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
+                          <p className="text-sm font-medium text-gray-900">
+                            {(() => {
+                              const hp = homeownerProfile;
+                              if (!hp) return 'No active plan';
+                              const now = new Date();
+                              const exp = hp.subscription_expires_at ? new Date(hp.subscription_expires_at) : null;
+                              const hasSub = hp.subscription_type && hp.subscription_type !== 'none' && exp && exp > now;
+                              if (hasSub) {
+                                if (hp.subscription_type === 'monthly') {
+                                  return `Monthly subscription active until ${exp.toLocaleDateString()}`;
+                                }
+                                if (hp.subscription_type === 'day_pass') {
+                                  return `24 hour pass active until ${exp.toLocaleString()}`;
+                                }
                               }
-                              if (hp.subscription_type === 'day_pass') {
-                                return `24 hour pass active until ${exp.toLocaleString()}`;
+                              if (hp.has_live_in_credit) {
+                                return 'Live-in placement credit available for your next hire';
                               }
-                            }
-                            if (hp.has_live_in_credit) {
-                              return 'Live-in placement credit available for your next hire';
-                            }
-                            return 'No active plan';
-                          })()}
-                        </p>
+                              return 'No active plan';
+                            })()}
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => navigate('/homeowner-profile-settings')}
+                            className="text-xs text-primary-600 hover:text-primary-700 underline font-medium"
+                          >
+                            View payment plans
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -1287,46 +1587,28 @@ const Dashboard = () => {
           </div>
         )}
 
-        {/* Maid: Services Offered row (above Quick Actions) */}
-        {isMaid && maidProfile && (
-          <div className="card mb-8">
-            <h3 className="text-xl font-semibold text-gray-900 mb-3">Services Offered</h3>
-            {maidProfile.skills ? (
-              <div className="flex flex-wrap gap-2">
-                {maidProfile.skills
-                  .split(',')
-                  .map((s) => s.trim())
-                  .filter((s) => s.length > 0)
-                  .map((s) => {
-                    const rate = maidServiceRates[s];
-                    return (
-                      <span
-                        key={s}
-                        className="px-3 py-1 bg-gray-100 text-gray-800 rounded-full text-sm"
-                      >
-                        {s}
-                        {rate ? ` (Starting Service fee: ${rate})` : ''}
-                      </span>
-                    );
-                  })}
-              </div>
-            ) : (
-              <p className="text-sm text-gray-600">
-                You have not added any services yet. Go to{' '}
-                <button
-                  type="button"
-                  onClick={() => navigate('/profile-settings')}
-                  className="text-primary-600 hover:underline"
-                >
-                  Profile Settings
-                </button>{' '}
-                to update your services.
+        {/* Homeowner: My Service Requests */}
+        {isHomeowner && !homeownerHasActivePlan && (
+          <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold text-amber-900">Your requests are currently hidden from service providers</p>
+              <p className="text-sm text-amber-800 mt-1">
+                You can still create and manage your service requests, but maids and other providers will not see them
+                until you purchase a payment plan.
               </p>
-            )}
+            </div>
+            <div className="flex-shrink-0">
+              <button
+                type="button"
+                onClick={() => navigate('/homeowner-profile-settings')}
+                className="btn-primary text-xs sm:text-sm px-4 py-2"
+              >
+                Pay so providers can see my requests
+              </button>
+            </div>
           </div>
         )}
 
-        {/* Homeowner: My Service Requests */}
         {isHomeowner && (
           <div className="card mb-8">
             <div className="flex items-center justify-between mb-4">
@@ -1369,16 +1651,31 @@ const Dashboard = () => {
                           </span>
                         )}
                         {isHomeowner && (
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              loadJobResponses(job);
-                            }}
-                            className="text-[11px] font-medium text-primary-600 hover:text-primary-700 underline ml-1"
-                          >
-                            View responses
-                          </button>
+                          <>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                loadJobResponses(job);
+                              }}
+                              className="text-[11px] font-medium text-primary-600 hover:text-primary-700 underline ml-1"
+                            >
+                              View responses
+                              {typeof job.responses_count === 'number' && job.responses_count > 0 && (
+                                <span className="ml-0.5">({job.responses_count})</span>
+                              )}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteJob(job);
+                              }}
+                              className="text-[11px] font-medium text-red-600 hover:text-red-700 underline ml-2"
+                            >
+                              Delete
+                            </button>
+                          </>
                         )}
                       </div>
                     </div>
@@ -1390,6 +1687,145 @@ const Dashboard = () => {
                 You have not posted any jobs or scheduled services yet. Use the <span className="font-medium">Post/Schedule Service</span> button below to create your first request.
               </p>
             )}
+          </div>
+        )}
+
+        {isHomeowner && showJobResponsesModal && jobResponsesFor && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+            <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+              <div className="flex items-center justify-between px-5 py-4 border-b">
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Job responses
+                  {Array.isArray(jobResponses) && jobResponses.length > 0 && (
+                    <span className="ml-2 text-sm font-normal text-gray-500">({jobResponses.length})</span>
+                  )}
+                </h3>
+                <button
+                  type="button"
+                  className="text-gray-400 hover:text-gray-600"
+                  onClick={() => {
+                    setShowJobResponsesModal(false);
+                    setJobResponsesFor(null);
+                    setJobResponses([]);
+                  }}
+                >
+                  
+                </button>
+              </div>
+              <div className="px-5 py-4 space-y-3">
+                <div>
+                  <p className="text-sm font-medium text-gray-900">{jobResponsesFor.title}</p>
+                  {jobResponsesFor.description && (
+                    <p className="text-xs text-gray-600 mt-0.5">{jobResponsesFor.description}</p>
+                  )}
+                </div>
+                {jobResponsesLoading ? (
+                  <p className="text-sm text-gray-500">Loading responses...</p>
+                ) : jobResponses && jobResponses.length > 0 ? (
+                  <ul className="divide-y divide-gray-100">
+                    {jobResponses.map((app) => {
+                      const provider = app.maid || app.cleaning_company || app.nurse || null;
+                      const name = provider?.full_name || provider?.company_name || provider?.username || 'Applicant';
+                      const label = app.maid
+                        ? 'Maid'
+                        : app.cleaning_company
+                          ? 'Cleaning company'
+                          : app.nurse
+                            ? 'Home nurse'
+                            : '';
+
+                      const handleOpenProviderProfile = () => {
+                        if (!provider || !provider.id) return;
+                        if (app.maid) {
+                          navigate(`/find-maids?maidId=${provider.id}`);
+                          return;
+                        }
+                        if (app.cleaning_company) {
+                          navigate(`/find-cleaning-companies?companyId=${provider.id}`);
+                          return;
+                        }
+                        if (app.nurse) {
+                          navigate(`/find-home-nurses?nurseId=${provider.id}`);
+                        }
+                      };
+
+                      return (
+                        <li key={app.id} className="py-3 flex flex-col gap-2">
+                          <div className="flex items-center justify-between gap-3">
+                            <button
+                              type="button"
+                              onClick={handleOpenProviderProfile}
+                              className="text-left flex-1"
+                            >
+                              <p className="text-sm font-medium text-primary-700 hover:underline">
+                                {name}
+                              </p>
+                              <div className="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-gray-500">
+                                {label && <span>{label}</span>}
+                                {provider?.location && <span>• {provider.location}</span>}
+                                {typeof provider?.rating === 'number' && (
+                                  <span>• Rating: {provider.rating} / 5</span>
+                                )}
+                                {typeof provider?.experience_years === 'number' && provider.experience_years > 0 && (
+                                  <span>• {provider.experience_years} yrs experience</span>
+                                )}
+                                {app.proposed_rate != null && (
+                                  <span>• Proposed pay: UGX {app.proposed_rate}</span>
+                                )}
+                                {app.status && (
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-gray-100 text-gray-700 text-[11px] font-medium">
+                                    {app.status}
+                                  </span>
+                                )}
+                              </div>
+                              {app.cover_letter && (
+                                <p className="mt-1 text-xs text-gray-600 whitespace-pre-line">
+                                  {app.cover_letter}
+                                </p>
+                              )}
+                              <p className="mt-1 text-[11px] text-primary-600">Tap to view full profile</p>
+                            </button>
+                          </div>
+                          <div className="flex gap-2 mt-1">
+                            <button
+                              type="button"
+                              className="px-3 py-1 rounded-full text-xs font-medium bg-primary-600 text-white hover:bg-primary-700 disabled:opacity-60 disabled:cursor-not-allowed"
+                              disabled={app.status === 'accepted'}
+                              onClick={() => handleAcceptApplication(app)}
+                            >
+                              {app.status === 'accepted' ? 'Accepted' : 'Accept'}
+                            </button>
+                            <button
+                              type="button"
+                              className="px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 disabled:opacity-60 disabled:cursor-not-allowed"
+                              disabled={app.status === 'rejected'}
+                              onClick={() => handleRejectApplication(app)}
+                            >
+                              {app.status === 'rejected' ? 'Rejected' : 'Reject'}
+                            </button>
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                ) : (
+                  <p className="text-sm text-gray-500">No responses yet. Providers who show interest in this job will appear here.</p>
+                )}
+                <div className="pt-3 flex justify-end">
+                  <button
+                    type="button"
+                    className="btn-secondary text-sm"
+                    onClick={() => {
+                      setShowJobResponsesModal(false);
+                      setJobResponsesFor(null);
+                      setJobResponses([]);
+                    }}
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         )}
 
@@ -1429,6 +1865,20 @@ const Dashboard = () => {
                   <Settings className="w-8 h-8 text-primary-600 mx-auto mb-2" />
                   <p className="font-medium text-gray-900">Settings</p>
                 </button>
+                <button
+                  onClick={() => navigate('/help-feedback')}
+                  className="p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md hover:border-primary-200 hover:bg-primary-50/50 transition-all duration-200 group"
+                >
+                  <HelpCircle className="w-8 h-8 text-primary-600 mx-auto mb-2" />
+                  <p className="font-medium text-gray-900">Help &amp; Feedback</p>
+                </button>
+                <button
+                  onClick={() => navigate('/legal')}
+                  className="p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md hover:border-primary-200 hover:bg-primary-50/50 transition-all duration-200 group"
+                >
+                  <FileText className="w-8 h-8 text-primary-600 mx-auto mb-2" />
+                  <p className="font-medium text-gray-900">Legal</p>
+                </button>
               </>
             )}
 
@@ -1454,6 +1904,13 @@ const Dashboard = () => {
                 >
                   <Settings className="w-8 h-8 text-primary-600 mx-auto mb-2" />
                   <p className="font-medium text-gray-900">Profile Settings</p>
+                </button>
+                <button
+                  onClick={() => navigate('/help-feedback')}
+                  className="p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md hover:border-primary-200 hover:bg-primary-50/50 transition-all duration-200 group"
+                >
+                  <HelpCircle className="w-8 h-8 text-primary-600 mx-auto mb-2" />
+                  <p className="font-medium text-gray-900">Help &amp; Feedback</p>
                 </button>
               </>
             )}
@@ -1496,6 +1953,13 @@ const Dashboard = () => {
                   <Home className="w-8 h-8 text-primary-600 mx-auto mb-2" />
                   <p className="font-medium text-gray-900">Export Homeowners (CSV)</p>
                 </button>
+                <button
+                  onClick={() => navigate('/help-feedback')}
+                  className="p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md hover:border-primary-200 hover:bg-primary-50/50 transition-all duration-200 group"
+                >
+                  <HelpCircle className="w-8 h-8 text-primary-600 mx-auto mb-2" />
+                  <p className="font-medium text-gray-900">Help &amp; Feedback</p>
+                </button>
               </>
             )}
 
@@ -1518,6 +1982,13 @@ const Dashboard = () => {
                   <Star className="w-8 h-8 text-primary-600 mx-auto mb-2" />
                   <p className="font-medium text-gray-900">Rates & Reviews</p>
                 </button>
+                <button
+                  onClick={() => navigate('/help-feedback')}
+                  className="p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md hover:border-primary-200 hover:bg-primary-50/50 transition-all duration-200 group"
+                >
+                  <HelpCircle className="w-8 h-8 text-primary-600 mx-auto mb-2" />
+                  <p className="font-medium text-gray-900">Help &amp; Feedback</p>
+                </button>
               </>
             )}
 
@@ -1539,6 +2010,13 @@ const Dashboard = () => {
                 >
                   <Star className="w-8 h-8 text-primary-600 mx-auto mb-2" />
                   <p className="font-medium text-gray-900">My Reviews</p>
+                </button>
+                <button
+                  onClick={() => navigate('/help-feedback')}
+                  className="p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md hover:border-primary-200 hover:bg-primary-50/50 transition-all duration-200 group"
+                >
+                  <HelpCircle className="w-8 h-8 text-primary-600 mx-auto mb-2" />
+                  <p className="font-medium text-gray-900">Help &amp; Feedback</p>
                 </button>
               </>
             )}

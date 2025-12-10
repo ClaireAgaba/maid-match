@@ -11,6 +11,27 @@ from home_nursing.models import HomeNurse
 import csv
 from datetime import date
 from django.http import HttpResponse
+from math import radians, sin, cos, asin, sqrt
+def _haversine_km(lat1, lon1, lat2, lon2):
+    """Return great-circle distance between two points (in km)."""
+    try:
+        lat1 = float(lat1)
+        lon1 = float(lon1)
+        lat2 = float(lat2)
+        lon2 = float(lon2)
+    except (TypeError, ValueError):
+        return None
+
+    # convert decimal degrees to radians
+    rlat1, rlon1, rlat2, rlon2 = map(radians, [lat1, lon1, lat2, lon2])
+    dlon = rlon2 - rlon1
+    dlat = rlat2 - rlat1
+    a = sin(dlat / 2) ** 2 + cos(rlat1) * cos(rlat2) * sin(dlon / 2) ** 2
+    c = 2 * asin(sqrt(a))
+    r = 6371  # Earth radius in km
+    return r * c
+
+
 class IsMaidOwner(permissions.BasePermission):
     """
     Custom permission to only allow maids to edit their own profile
@@ -110,7 +131,15 @@ class MaidProfileViewSet(viewsets.ModelViewSet):
 
         profile.current_latitude = lat
         profile.current_longitude = lng
-        profile.save(update_fields=['current_latitude', 'current_longitude'])
+        # Optionally update the human-readable location label so that
+        # homeowner browse views show the maid's live suburb/area instead
+        # of an outdated static location.
+        location_label = request.data.get('location_label')
+        update_fields = ['current_latitude', 'current_longitude']
+        if location_label:
+            profile.location = location_label
+            update_fields.append('location')
+        profile.save(update_fields=update_fields)
         return Response({'detail': 'Location updated'}, status=status.HTTP_200_OK)
     
     @action(detail=False, methods=['get'])
@@ -118,13 +147,17 @@ class MaidProfileViewSet(viewsets.ModelViewSet):
         """
         Get list of available maids
         """
-        # Only surface maids that are verified, enabled, and opted-in as available
+        # Only surface maids that are verified, enabled, and opted-in as available.
+        # Proximity is now exposed via the serializer's distance_km field for
+        # information, but we no longer hard-filter the list by radius so that
+        # homeowners don't “lose” maids entirely if coordinates drift.
         queryset = self.get_queryset().filter(
             availability_status=True,
             is_verified=True,
             is_enabled=True,
         )
-        serializer = MaidProfileListSerializer(queryset, many=True)
+
+        serializer = MaidProfileListSerializer(queryset, many=True, context={'request': request})
         return Response(serializer.data)
 
     @action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated])

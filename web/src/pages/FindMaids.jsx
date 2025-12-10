@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { maidAPI, reviewAPI } from '../services/api';
+import { useLiveLocationUpdater } from '../hooks/useLiveLocationUpdater';
+import { maidAPI, reviewAPI, homeownerAPI } from '../services/api';
 import { Users, Search, MapPin, Star, User, CheckCircle2, X, ArrowLeft } from 'lucide-react';
 
 const FindMaids = () => {
-  const { isHomeowner } = useAuth();
+  const { user, isHomeowner } = useAuth();
   const navigate = useNavigate();
   const [maids, setMaids] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -24,6 +25,13 @@ const FindMaids = () => {
   const [reviewsExpanded, setReviewsExpanded] = useState(false);
   const [loadingReviews, setLoadingReviews] = useState(false);
   const [submittingClose, setSubmittingClose] = useState(false);
+  const [homeownerProfile, setHomeownerProfile] = useState(null);
+  const [hasActivePlan, setHasActivePlan] = useState(false);
+  const [showPaywall, setShowPaywall] = useState(false);
+
+  // Ensure homeowner live GPS is updated while browsing maids so the
+  // backend distance filter has fresh coordinates.
+  useLiveLocationUpdater(user);
 
   // Helper: parse service_pricing (one "Service: value" per line) into a map
   const parseServiceRates = (service_pricing) => {
@@ -59,6 +67,22 @@ const FindMaids = () => {
     (async () => {
       try {
         setLoading(true);
+        // Load homeowner profile to determine payment plan status
+        try {
+          const hpRes = await homeownerAPI.getMyProfile();
+          const hp = hpRes.data;
+          setHomeownerProfile(hp);
+          if (hp) {
+            const now = new Date();
+            const exp = hp.subscription_expires_at ? new Date(hp.subscription_expires_at) : null;
+            const hasSub = hp.subscription_type && hp.subscription_type !== 'none' && exp && exp > now;
+            const active = !!hasSub || !!hp.has_live_in_credit;
+            setHasActivePlan(active);
+          }
+        } catch (e) {
+          // non-blocking if profile fails
+        }
+
         const res = await maidAPI.getAvailable();
         setMaids(res.data || []);
       } catch (e) {
@@ -184,7 +208,21 @@ const FindMaids = () => {
                   </div>
                   <div className="flex-1 min-w-0">
                     <h3 className="text-lg font-semibold text-gray-900 truncate">{m.full_name || 'Maid'}</h3>
-                    <p className="text-sm text-gray-600 flex items-center"><MapPin className="h-3 w-3 mr-1" />{m.location || 'Location not set'}</p>
+                    <p className="text-sm text-gray-600 flex items-center gap-2">
+                      <span className="inline-flex items-center">
+                        <MapPin className="h-3 w-3 mr-1" />
+                        {m.location || 'Location not set'}
+                      </span>
+                      {(() => {
+                        const d = m.distance_km != null ? Number(m.distance_km) : NaN;
+                        if (Number.isNaN(d)) return null;
+                        return (
+                          <span className="text-xs text-gray-500 px-2 py-0.5 rounded-full bg-gray-100">
+                            ~{d.toFixed(1)} km away
+                          </span>
+                        );
+                      })()}
+                    </p>
                     <div className="mt-1 text-xs text-gray-600 flex items-center gap-2">
                       <span>{m.gender ? m.gender.charAt(0).toUpperCase() + m.gender.slice(1) : 'Gender: N/A'}</span>
                       <span>•</span>
@@ -228,6 +266,11 @@ const FindMaids = () => {
                     <span className="inline-flex items-center gap-1"><Star className="h-4 w-4 text-yellow-500" /> {Number(m.rating || 0).toFixed(1)}</span>
                     {m.experience_years ? <span>{m.experience_years} yrs exp</span> : null}
                   </div>
+                  {m.bio && (
+                    <p className="text-xs text-gray-600 line-clamp-2">
+                      {m.bio}
+                    </p>
+                  )}
                 </div>
 
                 {/* Actions */}
@@ -261,7 +304,21 @@ const FindMaids = () => {
                 </div>
                 <div>
                   <h3 className="text-2xl font-bold text-gray-900">{selected.full_name}</h3>
-                  <p className="text-gray-600 flex items-center"><MapPin className="h-4 w-4 mr-1" />{selected.location || 'Location not set'}</p>
+                  <p className="text-gray-600 flex items-center gap-2">
+                    <span className="inline-flex items-center">
+                      <MapPin className="h-4 w-4 mr-1" />
+                      {selected.location || 'Location not set'}
+                    </span>
+                    {(() => {
+                      const d = selected && selected.distance_km != null ? Number(selected.distance_km) : NaN;
+                      if (Number.isNaN(d)) return null;
+                      return (
+                        <span className="text-xs text-gray-500 px-2 py-0.5 rounded-full bg-gray-100">
+                          ~{d.toFixed(1)} km away
+                        </span>
+                      );
+                    })()}
+                  </p>
                   <div className="mt-2 flex items-center gap-2">
                     <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-green-500"></span> Available</span>
                     <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 inline-flex items-center gap-1"><CheckCircle2 className="h-3 w-3" /> Verified</span>
@@ -403,6 +460,23 @@ const FindMaids = () => {
                 </div>
               )}
 
+              {showPaywall && (
+                <div className="mt-2 p-4 border rounded-lg bg-amber-50">
+                  <p className="text-sm font-semibold text-amber-900 mb-1">Contact details are locked</p>
+                  <p className="text-sm text-amber-800 mb-2">
+                    You need an active payment plan for your household before you can view maid contacts. You can
+                    still browse profiles and services.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => navigate('/homeowner-profile-settings')}
+                    className="btn-primary text-xs sm:text-sm px-4 py-2"
+                  >
+                    View payment plans
+                  </button>
+                </div>
+              )}
+
               {showRate && (
                 <div className="mt-4 p-4 border rounded-lg bg-gray-50">
                   <p className="text-gray-900 font-medium mb-2">Rate this maid</p>
@@ -502,32 +576,63 @@ const FindMaids = () => {
               )}
 
               <div className="pt-2 flex flex-col sm:flex-row justify-end gap-2">
-                <button onClick={() => { setSelected(null); setShowContact(false); setShowRate(false); }} className="btn-secondary w-full sm:w-auto">Close</button>
-                <button onClick={() => setShowRate(true)} className="btn-secondary w-full sm:w-auto">Rate Maid</button>
                 <button
-                  disabled={submittingClose}
-                  onClick={async () => {
-                    if (!selected) return;
-                    const ok = confirm('Close job with this maid? This will increase her Jobs Completed count.');
-                    if (!ok) return;
-                    try {
-                      setSubmittingClose(true);
-                      const res = await maidAPI.closeJob(selected.id);
-                      const newCount = res?.data?.total_jobs_completed ?? ((selected.total_jobs_completed || 0) + 1);
-                      setSelected(prev => ({ ...prev, total_jobs_completed: newCount }));
-                      setMaids(prev => prev.map(m => m.id === selected.id ? { ...m, total_jobs_completed: newCount } : m));
-                    } catch (e) {
-                      console.error('Failed to close job', e);
-                      alert('Failed to close job. Please try again.');
-                    } finally {
-                      setSubmittingClose(false);
-                    }
+                  onClick={() => {
+                    setSelected(null);
+                    setShowContact(false);
+                    setShowRate(false);
+                    setShowPaywall(false);
                   }}
                   className="btn-secondary w-full sm:w-auto"
                 >
-                  {submittingClose ? 'Closing...' : 'Close Job'}
+                  Close
                 </button>
-                <button onClick={() => setShowContact(true)} className="btn-primary w-full sm:w-auto">View Maid's Contact</button>
+
+                {hasActivePlan && (
+                  <>
+                    <button onClick={() => setShowRate(true)} className="btn-secondary w-full sm:w-auto">
+                      Rate Maid
+                    </button>
+                    <button
+                      disabled={submittingClose}
+                      onClick={async () => {
+                        if (!selected) return;
+                        const ok = confirm('Close job with this maid? This will increase her Jobs Completed count.');
+                        if (!ok) return;
+                        try {
+                          setSubmittingClose(true);
+                          const res = await maidAPI.closeJob(selected.id);
+                          const newCount = res?.data?.total_jobs_completed ?? ((selected.total_jobs_completed || 0) + 1);
+                          setSelected(prev => ({ ...prev, total_jobs_completed: newCount }));
+                          setMaids(prev => prev.map(m => m.id === selected.id ? { ...m, total_jobs_completed: newCount } : m));
+                        } catch (e) {
+                          console.error('Failed to close job', e);
+                          alert('Failed to close job. Please try again.');
+                        } finally {
+                          setSubmittingClose(false);
+                        }
+                      }}
+                      className="btn-secondary w-full sm:w-auto"
+                    >
+                      {submittingClose ? 'Closing...' : 'Close Job'}
+                    </button>
+                  </>
+                )}
+
+                <button
+                  onClick={() => {
+                    if (!hasActivePlan) {
+                      setShowPaywall(true);
+                      setShowContact(false);
+                      return;
+                    }
+                    setShowContact(true);
+                    setShowPaywall(false);
+                  }}
+                  className="btn-primary w-full sm:w-auto"
+                >
+                  View Maid's Contact
+                </button>
               </div>
             </div>
           </div>

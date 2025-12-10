@@ -10,6 +10,8 @@ from .serializers import (
     ReviewSerializer, ReviewCreateSerializer
 )
 from maid.models import MaidProfile
+from django.utils import timezone
+from django.db.models import Q
 import csv
 from django.http import HttpResponse
 
@@ -74,7 +76,14 @@ class HomeownerProfileViewSet(viewsets.ModelViewSet):
 
         profile.current_latitude = lat
         profile.current_longitude = lng
-        profile.save(update_fields=['current_latitude', 'current_longitude'])
+        # If frontend sent a human-friendly label, also keep it as the
+        # homeowner's current home_address for display.
+        location_label = request.data.get('location_label')
+        update_fields = ['current_latitude', 'current_longitude']
+        if location_label:
+            profile.home_address = location_label
+            update_fields.append('home_address')
+        profile.save(update_fields=update_fields)
         return Response({'detail': 'Location updated'}, status=status.HTTP_200_OK)
 
     @action(detail=False, methods=['get'])
@@ -184,6 +193,22 @@ class JobViewSet(viewsets.ModelViewSet):
             return JobCreateUpdateSerializer
         return JobSerializer
     
+    def _filter_homeowners_with_active_plan(self, queryset):
+        """Limit jobs to homeowners who currently have an active payment plan.
+
+        An active plan is defined as either:
+        - subscription_type is 'monthly' or 'day_pass' AND subscription_expires_at is in the future, OR
+        - has_live_in_credit is True (credit for next live-in placement).
+        """
+        now = timezone.now()
+        return queryset.filter(
+            Q(homeowner__has_live_in_credit=True)
+            | Q(
+                homeowner__subscription_type__in=['monthly', 'day_pass'],
+                homeowner__subscription_expires_at__gt=now,
+            )
+        )
+
     def get_queryset(self):
         queryset = super().get_queryset()
         user = self.request.user
@@ -192,17 +217,19 @@ class JobViewSet(viewsets.ModelViewSet):
         if hasattr(user, 'homeowner_profile'):
             return queryset.filter(homeowner=user.homeowner_profile)
         
-        # Maids see open jobs or jobs assigned to them
+        # Maids see open jobs or jobs assigned to them, but only for
+        # homeowners with an active payment plan
         if hasattr(user, 'maid_profile'):
-            return queryset.filter(
-                status__in=['open', 'assigned']
-            ) | queryset.filter(assigned_maid=user.maid_profile)
+            qs = queryset.filter(status__in=['open', 'assigned']) | queryset.filter(assigned_maid=user.maid_profile)
+            return self._filter_homeowners_with_active_plan(qs)
         
         # Admins see all jobs
         if user.is_staff:
             return queryset
         
-        return queryset.filter(status='open')
+        # Other provider roles (cleaning companies, home nurses) see open
+        # jobs for homeowners with an active plan
+        return self._filter_homeowners_with_active_plan(queryset.filter(status='open'))
     
     def perform_create(self, serializer):
         # Automatically set the homeowner to the current user's profile

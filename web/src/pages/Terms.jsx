@@ -1,11 +1,20 @@
 import BrandLogo from '../components/BrandLogo';
+import { Link } from 'react-router-dom';
 
 const Terms = () => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-50 to-primary-100 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-3xl w-full space-y-8 bg-white/90 rounded-2xl shadow-xl p-6 sm:p-10 overflow-y-auto max-h-[90vh]">
-        <div className="flex items-center gap-3 mb-4">
-          <BrandLogo sizeClass="h-12" showText />
+        <div className="flex items-center justify-between gap-3 mb-4">
+          <div className="flex items-center gap-3">
+            <BrandLogo sizeClass="h-12" showText />
+          </div>
+          <Link
+            to="/dashboard"
+            className="text-xs font-medium text-primary-600 hover:text-primary-700 underline"
+          >
+             Back to dashboard
+          </Link>
         </div>
         <div className="space-y-6 text-sm leading-relaxed text-gray-800">
           <div>

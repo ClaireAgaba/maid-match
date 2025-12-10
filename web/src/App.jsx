@@ -22,6 +22,8 @@ import MyMaidProfile from './pages/MyMaidProfile';
 import MyReviews from './pages/MyReviews';
 import MyNurseProfile from './pages/MyNurseProfile';
 import EditNurseProfile from './pages/EditNurseProfile';
+import HelpFeedback from './pages/HelpFeedback';
+import Legal from './pages/Legal';
 
 function App() {
   return (
@@ -173,6 +175,22 @@ function App() {
             element={
               <ProtectedRoute>
                 <MyReviews />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/help-feedback"
+            element={
+              <ProtectedRoute>
+                <HelpFeedback />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/legal"
+            element={
+              <ProtectedRoute>
+                <Legal />
               </ProtectedRoute>
             }
           />

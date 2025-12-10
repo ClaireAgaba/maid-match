@@ -151,6 +151,17 @@ export const homeNursingAPI = {
   browse: (params) => api.get('/home-nursing/public/browse/', { params }),
 };
 
+// Support / Help & Feedback API
+export const supportAPI = {
+  listTickets: (params) => api.get('/support/tickets/', { params }),
+  createTicket: (payload) => api.post('/support/tickets/', payload),
+  getTicket: (id) => api.get(`/support/tickets/${id}/`),
+  getMessages: (id) => api.get(`/support/tickets/${id}/messages/`),
+  reply: (id, body) => api.post(`/support/tickets/${id}/reply/`, { body }),
+  close: (id) => api.post(`/support/tickets/${id}/close/`),
+  satisfaction: (id, payload) => api.post(`/support/tickets/${id}/satisfaction/`, payload),
+};
+
 // Payments API
 export const paymentAPI = {
   initiateMaidOnboarding: (payload) => api.post('/payments/maid-onboarding/initiate/', payload),

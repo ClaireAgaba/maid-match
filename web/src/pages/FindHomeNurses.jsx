@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { homeNursingAPI, reviewAPI } from '../services/api';
+import { useAuth } from '../context/AuthContext';
+import { homeNursingAPI, reviewAPI, homeownerAPI } from '../services/api';
 import { Users, Search, MapPin, ShieldCheck, Stethoscope, X, Star, Phone, Mail, ArrowLeft } from 'lucide-react';
 
 const FindHomeNurses = () => {
   const navigate = useNavigate();
+  const { isHomeowner } = useAuth();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -17,6 +19,9 @@ const FindHomeNurses = () => {
   const [rateCommunication, setRateCommunication] = useState(0);
   const [rateReliability, setRateReliability] = useState(0);
   const [submittingRate, setSubmittingRate] = useState(false);
+  const [homeownerProfile, setHomeownerProfile] = useState(null);
+  const [hasActivePlan, setHasActivePlan] = useState(false);
+  const [showPaywall, setShowPaywall] = useState(false);
 
   // Helper: parse service_pricing (one "Category: value" per line) into a map
   const parseServiceRates = (service_pricing) => {
@@ -46,6 +51,24 @@ const FindHomeNurses = () => {
     (async () => {
       try {
         setLoading(true);
+
+        if (isHomeowner) {
+          try {
+            const hpRes = await homeownerAPI.getMyProfile();
+            const hp = hpRes.data;
+            setHomeownerProfile(hp);
+            if (hp) {
+              const now = new Date();
+              const exp = hp.subscription_expires_at ? new Date(hp.subscription_expires_at) : null;
+              const hasSub = hp.subscription_type && hp.subscription_type !== 'none' && exp && exp > now;
+              const active = !!hasSub || !!hp.has_live_in_credit;
+              setHasActivePlan(active);
+            }
+          } catch (e) {
+            // non-blocking
+          }
+        }
+
         const params = { q: search || undefined };
         if (level !== 'all') params.level = level;
         const res = await homeNursingAPI.browse(params);
@@ -57,7 +80,7 @@ const FindHomeNurses = () => {
         setLoading(false);
       }
     })();
-  }, [search, level]);
+  }, [search, level, isHomeowner]);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -246,6 +269,22 @@ const FindHomeNurses = () => {
                 </div>
               )}
 
+              {showPaywall && (
+                <div className="p-4 border rounded-lg bg-amber-50">
+                  <p className="text-sm font-semibold text-amber-900 mb-1">Contact details are locked</p>
+                  <p className="text-sm text-amber-800 mb-2">
+                    You need an active payment plan before you can view home nurse contacts.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => navigate('/homeowner-profile-settings')}
+                    className="btn-primary text-xs sm:text-sm px-4 py-2"
+                  >
+                    View payment plans
+                  </button>
+                </div>
+              )}
+
               {showRate && (
                 <div className="p-4 border rounded-lg bg-gray-50">
                   <p className="text-gray-900 font-medium mb-2">Rate this nurse</p>
@@ -267,7 +306,18 @@ const FindHomeNurses = () => {
                     ))}
                   </div>
                   <div className="flex justify-end gap-2">
-                    <button onClick={() => { setShowRate(false); setRatePunctuality(0); setRateQuality(0); setRateCommunication(0); setRateReliability(0); }} className="btn-secondary">Cancel</button>
+                    <button
+                      onClick={() => {
+                        setShowRate(false);
+                        setRatePunctuality(0);
+                        setRateQuality(0);
+                        setRateCommunication(0);
+                        setRateReliability(0);
+                      }}
+                      className="btn-secondary"
+                    >
+                      Cancel
+                    </button>
                     <button
                       disabled={submittingRate || [ratePunctuality, rateQuality, rateCommunication, rateReliability].some(v => v === 0)}
                       onClick={async () => {
@@ -282,7 +332,10 @@ const FindHomeNurses = () => {
                             comment: ''
                           });
                           setShowRate(false);
-                          setRatePunctuality(0); setRateQuality(0); setRateCommunication(0); setRateReliability(0);
+                          setRatePunctuality(0);
+                          setRateQuality(0);
+                          setRateCommunication(0);
+                          setRateReliability(0);
                           alert('Thanks for rating the nurse!');
                         } catch (e) {
                           console.error('Failed to submit rating', e);
@@ -293,16 +346,45 @@ const FindHomeNurses = () => {
                       }}
                       className="btn-primary"
                     >
-                      {submittingRate ? 'Submitting...' : 'Submit Rating'}
+                      Submit Rating
                     </button>
                   </div>
                 </div>
               )}
 
               <div className="pt-2 flex flex-col sm:flex-row justify-end gap-2">
-                <button onClick={() => { setSelected(null); setShowContact(false); setShowRate(false); }} className="btn-secondary w-full sm:w-auto">Close</button>
-                <button onClick={() => setShowRate(true)} className="btn-secondary w-full sm:w-auto">Rate Nurse</button>
-                <button onClick={() => setShowContact(true)} className="btn-primary w-full sm:w-auto">View Contact</button>
+                <button
+                  onClick={() => {
+                    setSelected(null);
+                    setShowContact(false);
+                    setShowRate(false);
+                    setShowPaywall(false);
+                  }}
+                  className="btn-secondary w-full sm:w-auto"
+                >
+                  Close
+                </button>
+
+                {(!isHomeowner || hasActivePlan) && (
+                  <button onClick={() => setShowRate(true)} className="btn-secondary w-full sm:w-auto">
+                    Rate Nurse
+                  </button>
+                )}
+
+                <button
+                  onClick={() => {
+                    if (isHomeowner && !hasActivePlan) {
+                      setShowPaywall(true);
+                      setShowContact(false);
+                      return;
+                    }
+                    setShowContact(true);
+                    setShowPaywall(false);
+                  }}
+                  className="btn-primary w-full sm:w-auto"
+                >
+                  View Contact
+                </button>
               </div>
             </div>
           </div>
@@ -313,3 +395,4 @@ const FindHomeNurses = () => {
 };
 
 export default FindHomeNurses;
+

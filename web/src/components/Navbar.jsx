@@ -8,19 +8,31 @@ import {
 } from 'lucide-react';
 
 const Navbar = ({
-    userProfile, // Passed from parent if available (e.g. maidProfile, homeownerProfile)
-    toggleSidebar // For mobile sidebar if needed later
+    userProfile,
+    toggleSidebar,
+    notifications = []
 }) => {
     const { user, logout, isHomeowner, isMaid, isAdmin, isHomeNurse, isCleaningCompany } = useAuth();
     const navigate = useNavigate();
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+    const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+    const [visibleNotifications, setVisibleNotifications] = useState(Array.isArray(notifications) ? notifications : []);
     const dropdownRef = useRef(null);
+    const notificationsRef = useRef(null);
+
+    // Keep local notifications in sync when parent changes (e.g. new data from dashboard)
+    useEffect(() => {
+        setVisibleNotifications(Array.isArray(notifications) ? notifications : []);
+    }, [notifications]);
 
     // Close dropdown when clicking outside
     useEffect(() => {
         const handleClickOutside = (event) => {
             if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
                 setIsDropdownOpen(false);
+            }
+            if (notificationsRef.current && !notificationsRef.current.contains(event.target)) {
+                setIsNotificationsOpen(false);
             }
         };
         document.addEventListener('mousedown', handleClickOutside);
@@ -64,11 +76,70 @@ const Navbar = ({
 
                     {/* Right Side Actions */}
                     <div className="flex items-center gap-4">
-                        {/* Notifications (Mock) */}
-                        <button className="p-2 text-gray-400 hover:text-primary-600 transition-colors relative">
-                            <Bell className="h-6 w-6" />
-                            <span className="absolute top-1.5 right-1.5 h-2.5 w-2.5 bg-secondary-500 rounded-full border-2 border-white"></span>
-                        </button>
+                        <div className="relative" ref={notificationsRef}>
+                            <button
+                                className="p-2 text-gray-400 hover:text-primary-600 transition-colors relative"
+                                onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
+                            >
+                                <Bell className="h-6 w-6" />
+                                {Array.isArray(visibleNotifications) && visibleNotifications.length > 0 && (
+                                    <span className="absolute -top-1 -right-1 min-h-[18px] min-w-[18px] px-1 rounded-full bg-secondary-500 text-white text-[10px] flex items-center justify-center border-2 border-white">
+                                        {visibleNotifications.length}
+                                    </span>
+                                )}
+                            </button>
+                            {isNotificationsOpen && (
+                                <div className="absolute right-0 mt-2 w-80 bg-white rounded-2xl shadow-xl border border-gray-100 py-2 overflow-hidden transform origin-top-right transition-all animate-in fade-in zoom-in-95 duration-200">
+                                    <div className="px-4 py-2 border-b border-gray-100 flex items-center justify-between">
+                                        <p className="text-xs font-semibold text-gray-800">Notifications</p>
+                                        {Array.isArray(visibleNotifications) && visibleNotifications.length > 0 ? (
+                                            <button
+                                                type="button"
+                                                onClick={() => setVisibleNotifications([])}
+                                                className="text-[10px] text-primary-600 hover:text-primary-700 underline"
+                                            >
+                                                Clear all
+                                            </button>
+                                        ) : (
+                                            <span className="text-[10px] text-gray-400">No new</span>
+                                        )}
+                                    </div>
+                                    <div className="max-h-72 overflow-y-auto">
+                                        {Array.isArray(visibleNotifications) && visibleNotifications.length > 0 ? (
+                                            visibleNotifications.map((n) => (
+                                                <button
+                                                    key={n.id}
+                                                    type="button"
+                                                    onClick={() => {
+                                                        if (typeof n.onClick === 'function') {
+                                                            n.onClick();
+                                                        }
+                                                        // Remove this notification locally so count drops
+                                                        setVisibleNotifications((prev) =>
+                                                            Array.isArray(prev) ? prev.filter((x) => x.id !== n.id) : prev
+                                                        );
+                                                        setIsNotificationsOpen(false);
+                                                    }}
+                                                    className="w-full text-left px-4 py-3 hover:bg-gray-50 flex flex-col gap-0.5"
+                                                >
+                                                    <p className="text-xs font-medium text-gray-900">{n.title}</p>
+                                                    {n.body && (
+                                                        <p className="text-[11px] text-gray-500">{n.body}</p>
+                                                    )}
+                                                    {n.kind && (
+                                                        <p className="text-[10px] text-gray-400 uppercase tracking-wide mt-0.5">{n.kind}</p>
+                                                    )}
+                                                </button>
+                                            ))
+                                        ) : (
+                                            <div className="px-4 py-4 text-xs text-gray-500">
+                                                No notifications yet.
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
 
                         {/* User Dropdown */}
                         <div className="relative" ref={dropdownRef}>

@@ -28,11 +28,45 @@ export function useLiveLocationUpdater(user) {
 
         setCoords(nextCoords);
 
+        // Best-effort reverse geocode to a suburb / area name for display
+        // and to send to the backend so it can be stored as the visible
+        // location/home address.
+        let prettyName = null;
+        try {
+          const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${nextCoords.lat}&lon=${nextCoords.lng}&zoom=16&addressdetails=1`;
+          const resp = await fetch(url, {
+            headers: {
+              'Accept': 'application/json',
+            },
+          });
+          if (resp.ok) {
+            const data = await resp.json();
+            const addr = data.address || {};
+            prettyName =
+              addr.suburb ||
+              addr.neighbourhood ||
+              addr.village ||
+              addr.town ||
+              addr.city ||
+              data.display_name ||
+              null;
+            if (prettyName) {
+              setPlaceName(prettyName);
+            }
+          }
+        } catch (geoErr) {
+          // Non-fatal; we still have coordinates.
+          console.warn('Reverse geocode failed', geoErr);
+        }
+
         try {
           const payload = {
             current_latitude: nextCoords.lat,
             current_longitude: nextCoords.lng,
           };
+          if (prettyName) {
+            payload.location_label = prettyName;
+          }
 
           if (user.user_type === 'maid') {
             await locationAPI.updateMaid(payload);
@@ -44,33 +78,6 @@ export function useLiveLocationUpdater(user) {
             await locationAPI.updateHomeNurse(payload);
           }
 
-          // Best-effort reverse geocode to a suburb / area name for display.
-          try {
-            const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${nextCoords.lat}&lon=${nextCoords.lng}&zoom=16&addressdetails=1`;
-            const resp = await fetch(url, {
-              headers: {
-                'Accept': 'application/json',
-              },
-            });
-            if (resp.ok) {
-              const data = await resp.json();
-              const addr = data.address || {};
-              const prettyName =
-                addr.suburb ||
-                addr.neighbourhood ||
-                addr.village ||
-                addr.town ||
-                addr.city ||
-                data.display_name ||
-                null;
-              if (prettyName) {
-                setPlaceName(prettyName);
-              }
-            }
-          } catch (geoErr) {
-            // Non-fatal; we still have coordinates.
-            console.warn('Reverse geocode failed', geoErr);
-          }
           setStatus('ok');
         } catch (e) {
           console.error('Failed to update live location', e);

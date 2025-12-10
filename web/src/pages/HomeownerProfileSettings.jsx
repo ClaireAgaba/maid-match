@@ -554,6 +554,17 @@ const HomeownerProfileSettings = () => {
                     <div className="space-y-2">
                       <CheckCircle className="h-8 w-8 text-green-600 mx-auto" />
                       <p className="text-sm text-gray-600">Document uploaded</p>
+                      <div className="flex items-center justify-center gap-3 text-xs">
+                        <a
+                          href={documentPreviews.id_document}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center text-primary-600 hover:text-primary-700 underline"
+                        >
+                          <FileText className="h-4 w-4 mr-1" />
+                          View document
+                        </a>
+                      </div>
                       <label className="btn-secondary cursor-pointer inline-flex items-center">
                         <Upload className="h-4 w-4 mr-2" />
                         Change Document
@@ -598,6 +609,17 @@ const HomeownerProfileSettings = () => {
                     <div className="space-y-2">
                       <CheckCircle className="h-8 w-8 text-green-600 mx-auto" />
                       <p className="text-sm text-gray-600">LC Letter uploaded</p>
+                      <div className="flex items-center justify-center gap-3 text-xs">
+                        <a
+                          href={documentPreviews.lc_letter}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center text-primary-600 hover:text-primary-700 underline"
+                        >
+                          <FileText className="h-4 w-4 mr-1" />
+                          View LC Letter
+                        </a>
+                      </div>
                       <label className="btn-secondary cursor-pointer inline-flex items-center">
                         <Upload className="h-4 w-4 mr-2" />
                         Change Document
