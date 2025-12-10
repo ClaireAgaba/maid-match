@@ -1034,127 +1034,6 @@ const Dashboard = () => {
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {!isAdmin && (
-          <div className="card mb-8">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900">People Directory</h3>
-                <p className="text-xs text-gray-500">Browse everyone registered on MaidMatch.</p>
-              </div>
-              <span className="px-3 py-1 rounded-full bg-gray-100 text-gray-700 text-xs font-medium">
-                {Array.isArray(directoryRows) ? directoryRows.length : 0} people
-              </span>
-            </div>
-
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
-              <div className="relative w-full md:max-w-xs">
-                <Search className="h-4 w-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                <input
-                  type="text"
-                  className="input-field pl-9 text-sm"
-                  placeholder="Search by name or location..."
-                  value={directorySearch}
-                  onChange={(e) => {
-                    setDirectorySearch(e.target.value);
-                    setDirectoryPage(1);
-                  }}
-                />
-              </div>
-              <div className="flex items-center gap-2 text-xs">
-                <span className="text-gray-500">Type:</span>
-                <select
-                  className="input-field text-xs w-40"
-                  value={directoryTypeFilter}
-                  onChange={(e) => {
-                    setDirectoryTypeFilter(e.target.value);
-                    setDirectoryPage(1);
-                  }}
-                >
-                  <option value="all">All</option>
-                  <option value="maid">Maids</option>
-                  <option value="homeowner">Homeowners</option>
-                  <option value="cleaning_company">Cleaning companies</option>
-                  <option value="nurse">Home nurses</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="overflow-x-auto rounded-xl border border-gray-100">
-              <table className="min-w-full text-left text-xs">
-                <thead className="bg-gray-50 text-gray-500 uppercase tracking-wide">
-                  <tr>
-                    <th className="px-4 py-2 font-semibold">Name</th>
-                    <th className="px-4 py-2 font-semibold">Age</th>
-                    <th className="px-4 py-2 font-semibold">Gender</th>
-                    <th className="px-4 py-2 font-semibold">Location</th>
-                    <th className="px-4 py-2 font-semibold">Type</th>
-                    <th className="px-4 py-2 font-semibold">Payment status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {directoryLoading ? (
-                    <tr>
-                      <td colSpan={6} className="px-4 py-6 text-center text-gray-500 text-xs">
-                        Loading directory...
-                      </td>
-                    </tr>
-                  ) : directoryPageRows.length === 0 ? (
-                    <tr>
-                      <td colSpan={6} className="px-4 py-6 text-center text-gray-500 text-xs">
-                        No people found for this filter.
-                      </td>
-                    </tr>
-                  ) : (
-                    directoryPageRows.map((row) => (
-                      <tr
-                        key={row.id}
-                        className="border-t border-gray-50 hover:bg-gray-50/70 cursor-pointer"
-                        onClick={() => {
-                          if (row.type === 'maid') navigate('/manage-maids');
-                          else if (row.type === 'homeowner') navigate('/manage-homeowners');
-                          else if (row.type === 'cleaning_company') navigate('/manage-cleaning-companies');
-                          else if (row.type === 'nurse') navigate('/manage-home-nurses');
-                        }}
-                      >
-                        <td className="px-4 py-2 text-gray-900 font-medium whitespace-nowrap">{row.name || '-'}</td>
-                        <td className="px-4 py-2 text-gray-700">{row.age ?? '-'}</td>
-                        <td className="px-4 py-2 text-gray-700 capitalize">{row.gender || '-'}</td>
-                        <td className="px-4 py-2 text-gray-700 max-w-xs truncate">{row.location || '-'}</td>
-                        <td className="px-4 py-2 text-gray-700 capitalize">{row.type?.replace('_', ' ')}</td>
-                        <td className="px-4 py-2 text-gray-700">{row.paymentStatus}</td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            <div className="mt-3 flex items-center justify-between text-[11px] text-gray-500">
-              <div>
-                Page {safeDirectoryPage} of {directoryTotalPages}
-              </div>
-              <div className="inline-flex gap-1">
-                <button
-                  type="button"
-                  className="px-2 py-1 rounded border border-gray-200 bg-white disabled:opacity-40"
-                  disabled={safeDirectoryPage <= 1}
-                  onClick={() => setDirectoryPage((p) => Math.max(1, p - 1))}
-                >
-                  Prev
-                </button>
-                <button
-                  type="button"
-                  className="px-2 py-1 rounded border border-gray-200 bg-white disabled:opacity-40"
-                  disabled={safeDirectoryPage >= directoryTotalPages}
-                  onClick={() => setDirectoryPage((p) => Math.min(directoryTotalPages, p + 1))}
-                >
-                  Next
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* Verification Status Banner */}
         {isMaid && maidProfile && !maidProfile.is_verified && (
           <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6">
@@ -2295,6 +2174,13 @@ const Dashboard = () => {
                 >
                   <HelpCircle className="w-8 h-8 text-primary-600 mx-auto mb-2" />
                   <p className="font-medium text-gray-900">Help &amp; Feedback</p>
+                </button>
+                <button
+                  onClick={() => navigate('/legal')}
+                  className="p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md hover:border-primary-200 hover:bg-primary-50/50 transition-all duration-200 group"
+                >
+                  <FileText className="w-8 h-8 text-primary-600 mx-auto mb-2" />
+                  <p className="font-medium text-gray-900">Legal</p>
                 </button>
               </>
             )}

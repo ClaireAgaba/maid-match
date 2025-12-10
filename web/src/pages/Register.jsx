@@ -156,10 +156,8 @@ const Register = () => {
     }
 
     // Prepare data for submission - only fields expected by accounts/register.
-    // We no longer send any password fields; all accounts are passwordless and
-    // use OTP-based login.
     const submitData = new FormData();
-    const baseKeys = ['username', 'email', 'user_type', 'phone_number', 'address'];
+    const baseKeys = ['username', 'email', 'user_type', 'phone_number', 'address', 'password', 'password2'];
     baseKeys.forEach((k) => {
       const v = formData[k];
       if (v !== undefined && v !== null && v !== '') submitData.append(k, v);
@@ -375,6 +373,44 @@ const Register = () => {
               </p>
               {errors.email && (
                 <p className="mt-1 text-sm text-red-600">{errors.email[0]}</p>
+              )}
+            </div>
+
+            <div>
+              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+                Password *
+              </label>
+              <input
+                id="password"
+                name="password"
+                type="password"
+                required
+                className="input-field"
+                placeholder="Enter a strong password"
+                value={formData.password}
+                onChange={handleChange}
+              />
+              {errors.password && (
+                <p className="mt-1 text-sm text-red-600">{errors.password[0]}</p>
+              )}
+            </div>
+
+            <div>
+              <label htmlFor="password2" className="block text-sm font-medium text-gray-700 mb-2">
+                Confirm Password *
+              </label>
+              <input
+                id="password2"
+                name="password2"
+                type="password"
+                required
+                className="input-field"
+                placeholder="Re-enter your password"
+                value={formData.password2}
+                onChange={handleChange}
+              />
+              {errors.password2 && (
+                <p className="mt-1 text-sm text-red-600">{errors.password2[0]}</p>
               )}
             </div>
 
