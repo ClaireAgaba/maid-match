@@ -417,16 +417,41 @@ const ManageHomeowners = () => {
                 <h4 className="font-semibold text-gray-900 mb-3">Payment Plan</h4>
                 {(() => {
                   const { typeLabel, statusLabel } = getPlanInfo(selectedHomeowner);
+                  const exp = selectedHomeowner.subscription_expires_at ? new Date(selectedHomeowner.subscription_expires_at) : null;
+                  const isActive = exp && exp > new Date();
                   return (
-                    <div className="space-y-1 text-sm">
+                    <div className="space-y-2 text-sm">
                       <div className="flex items-center justify-between">
                         <span className="text-gray-600">Current plan</span>
                         <span className="font-medium text-gray-900">{typeLabel}</span>
                       </div>
                       <div className="flex items-center justify-between">
                         <span className="text-gray-600">Status</span>
-                        <span className="font-medium text-gray-900">{statusLabel}</span>
+                        <span className={`font-medium ${isActive ? 'text-green-600' : 'text-gray-900'}`}>
+                          {statusLabel}
+                        </span>
                       </div>
+                      {exp && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-gray-600">Expires</span>
+                          <span className="font-medium text-gray-900">
+                            {exp.toLocaleString('en-US', { 
+                              month: 'short', 
+                              day: 'numeric', 
+                              year: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                          </span>
+                        </div>
+                      )}
+                      {selectedHomeowner.has_live_in_credit && (
+                        <div className="mt-2 px-3 py-2 bg-blue-50 border border-blue-200 rounded-md">
+                          <p className="text-xs text-blue-800 font-medium">
+                            ✓ Live-in credit available
+                          </p>
+                        </div>
+                      )}
                     </div>
                   );
                 })()}
