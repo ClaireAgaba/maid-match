@@ -1,6 +1,6 @@
 # 🏠 MaidMatch
 
-A comprehensive platform connecting homeowners with professional maids in Kenya.
+A comprehensive platform connecting homeowners with professional maids in Uganda.
 
 ## 🎯 Overview
 
