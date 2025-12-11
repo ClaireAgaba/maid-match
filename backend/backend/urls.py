@@ -7,6 +7,7 @@ from django.conf.urls.static import static
 from rest_framework import permissions
 from drf_yasg.views import get_schema_view
 from drf_yasg import openapi
+from payments.views import PesapalPaymentCallbackView
 
 # API Documentation
 schema_view = get_schema_view(
@@ -28,6 +29,9 @@ urlpatterns = [
     # API Documentation
     path('swagger/', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),
     path('redoc/', schema_view.with_ui('redoc', cache_timeout=0), name='schema-redoc'),
+    
+    # Pesapal callback (must be at root level to match the callback URL)
+    path('pesapal/payment-complete/', PesapalPaymentCallbackView.as_view(), name='pesapal_callback'),
     
     # API endpoints
     path('api/accounts/', include('accounts.urls')),

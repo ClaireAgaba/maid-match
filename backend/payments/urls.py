@@ -1,5 +1,12 @@
 from django.urls import path
-from .views import MaidOnboardingInitiateView, HomeNurseOnboardingInitiateView, HomeownerPaymentInitiateView, CleaningCompanyPaymentInitiateView, PesapalIPNView
+from .views import (
+    MaidOnboardingInitiateView,
+    HomeNurseOnboardingInitiateView,
+    HomeownerPaymentInitiateView,
+    CleaningCompanyPaymentInitiateView,
+    PesapalIPNView,
+    PesapalPaymentCallbackView,
+)
 
 urlpatterns = [
     path("maid-onboarding/initiate/", MaidOnboardingInitiateView.as_view(), name="maid_onboarding_initiate"),

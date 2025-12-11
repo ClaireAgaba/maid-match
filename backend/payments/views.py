@@ -741,3 +741,88 @@ class PesapalIPNView(APIView):
         tx.raw_callback = {"ipn": data, "status": status_data}
         tx.save(update_fields=["status", "completed_at", "raw_callback"])
         return Response({"detail": "OK"})
+
+
+class PesapalPaymentCallbackView(APIView):
+    """
+    Pesapal redirects the user here after payment.
+    We show a simple HTML page that says "Processing..." and redirects to the frontend dashboard.
+    The actual status update happens via IPN webhook.
+    """
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        from django.http import HttpResponse
+        from decouple import config
+
+        frontend_url = config("FRONTEND_URL", default="https://maidmatch.netlify.app")
+        
+        html = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Payment Processing - MaidMatch</title>
+            <style>
+                body {{
+                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    min-height: 100vh;
+                    margin: 0;
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                }}
+                .container {{
+                    background: white;
+                    padding: 3rem;
+                    border-radius: 1rem;
+                    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+                    text-align: center;
+                    max-width: 400px;
+                }}
+                .spinner {{
+                    border: 4px solid #f3f3f3;
+                    border-top: 4px solid #667eea;
+                    border-radius: 50%;
+                    width: 50px;
+                    height: 50px;
+                    animation: spin 1s linear infinite;
+                    margin: 0 auto 1.5rem;
+                }}
+                @keyframes spin {{
+                    0% {{ transform: rotate(0deg); }}
+                    100% {{ transform: rotate(360deg); }}
+                }}
+                h1 {{
+                    color: #333;
+                    margin-bottom: 0.5rem;
+                    font-size: 1.5rem;
+                }}
+                p {{
+                    color: #666;
+                    margin-bottom: 1rem;
+                }}
+                .note {{
+                    font-size: 0.875rem;
+                    color: #999;
+                }}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="spinner"></div>
+                <h1>Payment Processing</h1>
+                <p>Thank you for your payment! We're confirming your transaction...</p>
+                <p class="note">You will be redirected to your dashboard shortly.</p>
+            </div>
+            <script>
+                setTimeout(function() {{
+                    window.location.href = '{frontend_url}/dashboard';
+                }}, 3000);
+            </script>
+        </body>
+        </html>
+        """
+        return HttpResponse(html)
