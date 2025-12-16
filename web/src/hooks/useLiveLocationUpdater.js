@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { locationAPI } from '../services/api';
+import { detectCurrentLocation, geolocationErrorToMessage } from '../utils/location';
 
 /**
  * useLiveLocationUpdater
@@ -12,85 +13,64 @@ export function useLiveLocationUpdater(user) {
   const [status, setStatus] = useState('idle');
   const [coords, setCoords] = useState(null); // { lat, lng }
   const [placeName, setPlaceName] = useState(null); // human-friendly label
+  const [errorMessage, setErrorMessage] = useState(null);
+  const [attempt, setAttempt] = useState(0);
+
+  const retry = () => {
+    setAttempt((n) => n + 1);
+  };
 
   useEffect(() => {
     if (!user) return;
-    if (!('geolocation' in navigator)) return;
-
+    let mounted = true;
     setStatus('updating');
+    setErrorMessage(null);
 
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        const nextCoords = {
-          lat: pos.coords.latitude,
-          lng: pos.coords.longitude,
+    (async () => {
+      try {
+        const { coords: nextCoords, placeName: prettyName } = await detectCurrentLocation({
+          enableHighAccuracy: true,
+          timeoutMs: 15000,
+          maximumAgeMs: 0,
+          reverseGeocode: true,
+        });
+
+        if (!mounted) return;
+        setCoords({ lat: nextCoords.lat, lng: nextCoords.lng });
+        if (prettyName) setPlaceName(prettyName);
+
+        const payload = {
+          current_latitude: nextCoords.lat,
+          current_longitude: nextCoords.lng,
         };
-
-        setCoords(nextCoords);
-
-        // Best-effort reverse geocode to a suburb / area name for display
-        // and to send to the backend so it can be stored as the visible
-        // location/home address.
-        let prettyName = null;
-        try {
-          const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${nextCoords.lat}&lon=${nextCoords.lng}&zoom=16&addressdetails=1`;
-          const resp = await fetch(url, {
-            headers: {
-              'Accept': 'application/json',
-            },
-          });
-          if (resp.ok) {
-            const data = await resp.json();
-            const addr = data.address || {};
-            prettyName =
-              addr.suburb ||
-              addr.neighbourhood ||
-              addr.village ||
-              addr.town ||
-              addr.city ||
-              data.display_name ||
-              null;
-            if (prettyName) {
-              setPlaceName(prettyName);
-            }
-          }
-        } catch (geoErr) {
-          // Non-fatal; we still have coordinates.
-          console.warn('Reverse geocode failed', geoErr);
+        if (prettyName) {
+          payload.location_label = prettyName;
         }
 
-        try {
-          const payload = {
-            current_latitude: nextCoords.lat,
-            current_longitude: nextCoords.lng,
-          };
-          if (prettyName) {
-            payload.location_label = prettyName;
-          }
-
-          if (user.user_type === 'maid') {
-            await locationAPI.updateMaid(payload);
-          } else if (user.user_type === 'homeowner') {
-            await locationAPI.updateHomeowner(payload);
-          } else if (user.user_type === 'cleaning_company') {
-            await locationAPI.updateCleaningCompany(payload);
-          } else if (user.user_type === 'home_nurse') {
-            await locationAPI.updateHomeNurse(payload);
-          }
-
-          setStatus('ok');
-        } catch (e) {
-          console.error('Failed to update live location', e);
-          setStatus('error');
+        if (user.user_type === 'maid') {
+          await locationAPI.updateMaid(payload);
+        } else if (user.user_type === 'homeowner') {
+          await locationAPI.updateHomeowner(payload);
+        } else if (user.user_type === 'cleaning_company') {
+          await locationAPI.updateCleaningCompany(payload);
+        } else if (user.user_type === 'home_nurse') {
+          await locationAPI.updateHomeNurse(payload);
         }
-      },
-      (err) => {
+
+        if (!mounted) return;
+        setStatus('ok');
+      } catch (err) {
         console.warn('Geolocation error', err);
+        if (!mounted) return;
+        setErrorMessage(geolocationErrorToMessage(err));
         setStatus('error');
-      },
-      { enableHighAccuracy: true }
-    );
-  }, [user?.user_type]);
+      }
+    })();
 
-  return { status, coords, placeName };
+    return () => {
+      mounted = false;
+    };
+  }, [user?.user_type, attempt]);
+
+  return { status, coords, placeName, errorMessage, retry };
 }

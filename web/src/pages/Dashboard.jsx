@@ -119,10 +119,10 @@ const Dashboard = () => {
   const [directoryTypeFilter, setDirectoryTypeFilter] = useState('all');
   const [directoryPage, setDirectoryPage] = useState(1);
 
-  const { status: liveLocationStatus, coords: liveLocationCoords, placeName: liveLocationPlace } = useLiveLocationUpdater(user);
+  const { status: liveLocationStatus, coords: liveLocationCoords, placeName: liveLocationPlace, errorMessage: liveLocationError, retry: retryLiveLocation } = useLiveLocationUpdater(user);
   const liveLocationLabel = (() => {
     if (liveLocationStatus === 'updating') return 'Detecting your live location...';
-    if (liveLocationStatus === 'error') return 'Live location unavailable';
+    if (liveLocationStatus === 'error') return liveLocationError || 'Live location unavailable';
     if (liveLocationStatus === 'ok') {
       if (liveLocationPlace) {
         return `Live location: ${liveLocationPlace}`;
@@ -1828,6 +1828,15 @@ const Dashboard = () => {
                       {liveLocationLabel && (
                         <p className="mt-1 text-xs text-gray-500">
                           {liveLocationLabel}
+                          {liveLocationStatus === 'error' && (
+                            <button
+                              type="button"
+                              className="ml-2 text-primary-600 hover:text-primary-700 underline"
+                              onClick={retryLiveLocation}
+                            >
+                              Retry location
+                            </button>
+                          )}
                         </p>
                       )}
                       {maidAge !== null && (
@@ -2189,6 +2198,15 @@ const Dashboard = () => {
                       {liveLocationLabel && (
                         <p className="mt-1 text-xs text-gray-500">
                           {liveLocationLabel}
+                          {liveLocationStatus === 'error' && (
+                            <button
+                              type="button"
+                              className="ml-2 text-primary-600 hover:text-primary-700 underline"
+                              onClick={retryLiveLocation}
+                            >
+                              Retry location
+                            </button>
+                          )}
                         </p>
                       )}
                     </div>

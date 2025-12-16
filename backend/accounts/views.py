@@ -10,6 +10,7 @@ from datetime import timedelta
 import random
 import requests
 from django.conf import settings
+from django.db import transaction
 from .authentication import generate_access_token
 from .serializers import (
     UserSerializer, UserRegistrationSerializer, UserUpdateSerializer,
@@ -161,13 +162,24 @@ class PasswordLoginView(APIView):
         try:
             user = User.objects.get(phone_number=phone)
         except User.DoesNotExist:
-            return Response({"error": "Invalid phone number or password"}, status=status.HTTP_401_UNAUTHORIZED)
+            return Response(
+                {"error": "No account found with this phone number."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # Deactivated accounts (e.g. deactivated cleaning companies) should get
+        # an explicit message so users understand the account is not usable.
+        if not getattr(user, "is_active", True):
+            return Response(
+                {"error": "This account has been deactivated. Please contact support if you believe this is a mistake."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
 
         if not user.has_usable_password():
             return Response({"error": "This account does not have a password yet. Please set your password first."}, status=status.HTTP_400_BAD_REQUEST)
 
         if not user.check_password(password):
-            return Response({"error": "Invalid phone number or password"}, status=status.HTTP_401_UNAUTHORIZED)
+            return Response({"error": "Incorrect password."}, status=status.HTTP_401_UNAUTHORIZED)
 
         # Reuse the same blocking logic as OTP login for disabled accounts.
         try:
@@ -328,7 +340,7 @@ class UserViewSet(viewsets.ModelViewSet):
             return UserUpdateSerializer
         return UserSerializer
     
-    @action(detail=False, methods=['get', 'patch', 'put'])
+    @action(detail=False, methods=['get', 'patch', 'put', 'delete'])
     def me(self, request):
         """
         Get or update current user's profile
@@ -344,6 +356,19 @@ class UserViewSet(viewsets.ModelViewSet):
                 serializer.save()
                 return Response(UserSerializer(request.user).data)
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        elif request.method == 'DELETE':
+            user = request.user
+            try:
+                with transaction.atomic():
+                    logout(request)
+                    user.delete()
+            except Exception as exc:
+                return Response(
+                    {'error': 'Account deletion failed', 'detail': str(exc)},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            return Response({'message': 'Account deleted successfully'}, status=status.HTTP_200_OK)
     
     @action(detail=False, methods=['post'])
     def change_password(self, request):

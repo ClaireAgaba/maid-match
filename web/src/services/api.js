@@ -67,6 +67,7 @@ export const authAPI = {
   logout: () => api.post('/accounts/logout/'),
   getCurrentUser: () => api.get('/accounts/users/me/'),
   updateUser: (data) => api.patch('/accounts/users/me/', data),
+  deleteMe: () => api.delete('/accounts/users/me/'),
   changePassword: (passwords) => api.post('/accounts/users/change_password/', passwords),
   setInitialPassword: (passwords) => api.post('/accounts/users/set_initial_password/', passwords),
 };

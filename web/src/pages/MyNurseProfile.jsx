@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { homeNursingAPI } from '../services/api';
+import { authAPI, homeNursingAPI } from '../services/api';
 import { User, MapPin } from 'lucide-react';
 
 // Helper to turn a relative /media/... path into a full URL in dev
@@ -21,10 +21,11 @@ const Row = ({ label, value }) => (
 );
 
 const MyNurseProfile = () => {
-  const { isHomeNurse } = useAuth();
+  const { isHomeNurse, logout } = useAuth();
   const navigate = useNavigate();
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState(false);
 
   useEffect(() => {
     if (!isHomeNurse) { navigate('/dashboard'); return; }
@@ -59,7 +60,30 @@ const MyNurseProfile = () => {
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
           <button onClick={() => navigate('/dashboard')} className="text-gray-600 hover:text-gray-900">← Back</button>
           <h1 className="text-2xl font-bold text-gray-900">My Nurse Profile</h1>
-          <button onClick={() => navigate('/nurse/profile/edit')} className="btn-secondary">Edit Profile</button>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              className="btn-secondary border-red-200 text-red-700 hover:bg-red-50"
+              disabled={actionLoading}
+              onClick={async () => {
+                if (!window.confirm('This will permanently delete your MaidMatch account and data. This cannot be undone. Continue?')) return;
+                setActionLoading(true);
+                try {
+                  await authAPI.deleteMe();
+                  await logout();
+                  navigate('/login');
+                } catch (e) {
+                  console.error('Failed to delete account', e);
+                  alert('Could not delete your account. Please try again or contact support.');
+                } finally {
+                  setActionLoading(false);
+                }
+              }}
+            >
+              Delete account
+            </button>
+            <button onClick={() => navigate('/nurse/profile/edit')} className="btn-secondary">Edit Profile</button>
+          </div>
         </div>
       </div>
 

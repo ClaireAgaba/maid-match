@@ -2,10 +2,11 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { homeownerAPI, authAPI, paymentAPI } from '../services/api';
+import { detectCurrentLocation, geolocationErrorToMessage } from '../utils/location';
 import { 
   User, Phone, Mail, MapPin, Home as HomeIcon, 
   Save, CheckCircle, AlertCircle, Camera, Upload, FileText,
-  Power, CreditCard
+  Power, CreditCard, Trash2
 } from 'lucide-react';
 
 const HomeownerProfileSettings = () => {
@@ -99,6 +100,23 @@ const HomeownerProfileSettings = () => {
       setErrors({ general: 'Failed to load profile' });
       setLoading(false);
     }
+  };
+
+  const handleDeleteAccount = async () => {
+    const ok = window.confirm('This will permanently delete your MaidMatch account and data. This cannot be undone. Continue?');
+    if (!ok) return;
+    try {
+      await authAPI.deleteMe();
+    } catch (e) {
+      console.error('Error deleting account:', e);
+      alert('Failed to delete account. Please try again.');
+      return;
+    }
+    localStorage.removeItem('user');
+    localStorage.removeItem('accessToken');
+    sessionStorage.removeItem('user');
+    sessionStorage.removeItem('accessToken');
+    window.location.href = '/login';
   };
 
   const handleChange = (e) => {
@@ -222,16 +240,26 @@ const HomeownerProfileSettings = () => {
             Need to take a break from Maid Match? You can temporarily disable your homeowner account.
             Your profile and jobs will be hidden until you come back.
           </p>
-          <button
-            type="button"
-            className="btn-secondary border-red-300 text-red-700 hover:bg-red-50 flex items-center"
-            onClick={() => {
-              alert('Account deactivation will be available soon. For now, contact support to disable your account.');
-            }}
-          >
-            <Power className="h-4 w-4 mr-2" />
-            Take a break / Disable account
-          </button>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <button
+              type="button"
+              className="btn-secondary border-red-300 text-red-700 hover:bg-red-50 flex items-center"
+              onClick={() => {
+                alert('Account deactivation will be available soon. For now, contact support to disable your account.');
+              }}
+            >
+              <Power className="h-4 w-4 mr-2" />
+              Take a break / Disable account
+            </button>
+            <button
+              type="button"
+              className="btn-secondary border-red-300 text-red-700 hover:bg-red-50 flex items-center"
+              onClick={handleDeleteAccount}
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Delete account
+            </button>
+          </div>
         </div>
 
         {/* Payments & Access Plans */}
@@ -439,34 +467,22 @@ const HomeownerProfileSettings = () => {
                   />
                   <button
                     type="button"
-                    onClick={() => {
-                      if ('geolocation' in navigator) {
-                        navigator.geolocation.getCurrentPosition(
-                          async (position) => {
-                            const { latitude, longitude } = position.coords;
-                            try {
-                              const response = await fetch(
-                                `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`
-                              );
-                              const data = await response.json();
-                              const location = data.address.city || data.address.town || data.address.county || 'Unknown location';
-                              
-                              setProfileData({
-                                ...profileData,
-                                address: location
-                              });
-                            } catch (error) {
-                              console.error('Error getting location name:', error);
-                              alert('Unable to get location name. Please enter manually.');
-                            }
-                          },
-                          (error) => {
-                            console.error('Error getting location:', error);
-                            alert('Unable to get your location. Please enable location services or enter manually.');
-                          }
-                        );
-                      } else {
-                        alert('Geolocation is not supported by your browser');
+                    onClick={async () => {
+                      try {
+                        const { coords, placeName } = await detectCurrentLocation({
+                          enableHighAccuracy: true,
+                          timeoutMs: 15000,
+                          maximumAgeMs: 0,
+                          reverseGeocode: true,
+                        });
+                        const label = placeName || `${coords.lat.toFixed(5)}, ${coords.lng.toFixed(5)}`;
+                        setProfileData({
+                          ...profileData,
+                          address: label,
+                        });
+                      } catch (error) {
+                        console.error('Error getting location:', error);
+                        alert(geolocationErrorToMessage(error));
                       }
                     }}
                     className="btn-secondary whitespace-nowrap"

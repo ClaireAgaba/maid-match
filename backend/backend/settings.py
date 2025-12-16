@@ -172,6 +172,7 @@ REST_FRAMEWORK = {
 # CORS Configuration
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",  # React web app
+    "http://localhost:5173",  # Vite dev server
     "http://localhost:19006",  # Expo web
     "http://localhost:19000",  # Expo dev server
     "https://maidmatchug.netlify.app",
@@ -185,18 +186,27 @@ CORS_ALLOW_ALL_ORIGINS = DEBUG
 # CSRF Configuration for API (still useful for any cookie-based views)
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:3000",
+    "http://localhost:5173",
     "http://localhost:19006",
     "http://localhost:19000",
     "https://maidmatchug.netlify.app",
 ]
 
-# For token-based API auth we don't rely on CSRF cookies, so keep defaults
-
-CSRF_COOKIE_SECURE = True
-SESSION_COOKIE_SECURE = True
-
-CSRF_COOKIE_SAMESITE = "None"
-SESSION_COOKIE_SAMESITE = "None"
+# Cookie security
+#
+# In production we want secure cookies. In local development (http://localhost)
+# secure cookies won't be set, which can break CSRF flows if you are testing
+# any cookie-based endpoints.
+if DEBUG:
+    CSRF_COOKIE_SECURE = False
+    SESSION_COOKIE_SECURE = False
+    CSRF_COOKIE_SAMESITE = "Lax"
+    SESSION_COOKIE_SAMESITE = "Lax"
+else:
+    CSRF_COOKIE_SECURE = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SAMESITE = "None"
+    SESSION_COOKIE_SAMESITE = "None"
 
 # WhatsApp Cloud API
 WHATSAPP_ACCESS_TOKEN = config('WHATSAPP_ACCESS_TOKEN', default='')

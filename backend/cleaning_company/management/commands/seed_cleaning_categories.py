@@ -9,12 +9,17 @@ HOUSE = [
     "Sofa / couch cleaning",
     "Mattress deep cleaning",
     "Carpet cleaning",
-    "Laundry Services",
     "Tile scrubbing & stain removal",
     "Wall cleaning",
     "Window cleaning",
     "Bathroom deep cleaning",
     "Kitchen degreasing",
+]
+
+LAUNDRY = [
+    "Laundry washing",
+    "Ironing",
+    "Dry cleaning pickup/drop-off",
 ]
 
 EXTERNAL = [
@@ -56,6 +61,7 @@ class Command(BaseCommand):
             (ServiceCategory.GROUP_EXTERNAL, EXTERNAL),
             (ServiceCategory.GROUP_FUMIGATION, FUMIGATION),
             (ServiceCategory.GROUP_COMMERCIAL, COMMERCIAL),
+            (ServiceCategory.GROUP_LAUNDRY, LAUNDRY),
         ]
         created = 0
         for group, names in data:

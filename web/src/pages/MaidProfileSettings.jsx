@@ -2,10 +2,11 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { maidAPI, authAPI } from '../services/api';
+import { detectCurrentLocation, geolocationErrorToMessage } from '../utils/location';
 import { 
   User, Calendar, MapPin, Phone, Mail, Briefcase, 
   DollarSign, FileText, Upload, Camera, Save, 
-  CheckCircle, AlertCircle, Star, Award 
+  CheckCircle, AlertCircle, Star, Award, Trash2 
 } from 'lucide-react';
 
 const MAID_SERVICE_OPTIONS = [
@@ -106,6 +107,23 @@ const MaidProfileSettings = () => {
       setErrors({ general: 'Failed to load profile' });
       setLoading(false);
     }
+  };
+
+  const handleDeleteAccount = async () => {
+    const ok = window.confirm('This will permanently delete your MaidMatch account and data. This cannot be undone. Continue?');
+    if (!ok) return;
+    try {
+      await authAPI.deleteMe();
+    } catch (e) {
+      console.error('Error deleting account:', e);
+      alert('Failed to delete account. Please try again.');
+      return;
+    }
+    localStorage.removeItem('user');
+    localStorage.removeItem('accessToken');
+    sessionStorage.removeItem('user');
+    sessionStorage.removeItem('accessToken');
+    window.location.href = '/login';
   };
 
   // Local map of per-service starting pay, derived from the single
@@ -436,35 +454,22 @@ const MaidProfileSettings = () => {
                   />
                   <button
                     type="button"
-                    onClick={() => {
-                      if ('geolocation' in navigator) {
-                        navigator.geolocation.getCurrentPosition(
-                          async (position) => {
-                            const { latitude, longitude } = position.coords;
-                            try {
-                              // Reverse geocode to get location name
-                              const response = await fetch(
-                                `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`
-                              );
-                              const data = await response.json();
-                              const location = data.address.city || data.address.town || data.address.county || 'Unknown location';
-                              
-                              setProfileData({
-                                ...profileData,
-                                location: location
-                              });
-                            } catch (error) {
-                              console.error('Error getting location name:', error);
-                              alert('Unable to get location name. Please enter manually.');
-                            }
-                          },
-                          (error) => {
-                            console.error('Error getting location:', error);
-                            alert('Unable to get your location. Please enable location services or enter manually.');
-                          }
-                        );
-                      } else {
-                        alert('Geolocation is not supported by your browser');
+                    onClick={async () => {
+                      try {
+                        const { coords, placeName } = await detectCurrentLocation({
+                          enableHighAccuracy: true,
+                          timeoutMs: 15000,
+                          maximumAgeMs: 0,
+                          reverseGeocode: true,
+                        });
+                        const label = placeName || `${coords.lat.toFixed(5)}, ${coords.lng.toFixed(5)}`;
+                        setProfileData({
+                          ...profileData,
+                          location: label,
+                        });
+                      } catch (error) {
+                        console.error('Error getting location:', error);
+                        alert(geolocationErrorToMessage(error));
                       }
                     }}
                     className="btn-secondary whitespace-nowrap w-full sm:w-auto"
@@ -705,6 +710,15 @@ const MaidProfileSettings = () => {
               disabled={saving}
             >
               Cancel
+            </button>
+            <button
+              type="button"
+              className="btn-secondary border-red-300 text-red-700 hover:bg-red-50 flex items-center justify-center w-full sm:w-auto"
+              disabled={saving}
+              onClick={handleDeleteAccount}
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Delete account
             </button>
             <button
               type="submit"

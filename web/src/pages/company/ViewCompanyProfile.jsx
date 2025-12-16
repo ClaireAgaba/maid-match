@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { cleaningCompanyAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
+import { authAPI } from '../../services/api';
 
 const ViewCompanyProfile = () => {
   const navigate = useNavigate();
@@ -107,9 +108,7 @@ const ViewCompanyProfile = () => {
               disabled={actionLoading}
               className="btn-secondary text-sm border-red-200 text-red-700 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed"
               onClick={async () => {
-                if (!window.confirm('Deactivate will delete your company profile and disable your login until support re-enables you. This cannot be undone. Continue?')) {
-                  return;
-                }
+                if (!window.confirm('Deactivate will disable your company login until you contact support to re-enable it. Continue?')) return;
                 setActionLoading(true);
                 try {
                   await cleaningCompanyAPI.deactivateMe();
@@ -124,6 +123,27 @@ const ViewCompanyProfile = () => {
               }}
             >
               Deactivate account
+            </button>
+            <button
+              type="button"
+              disabled={actionLoading}
+              className="btn-secondary text-sm border-red-200 text-red-700 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              onClick={async () => {
+                if (!window.confirm('This will permanently delete your MaidMatch account and data. This cannot be undone. Continue?')) return;
+                setActionLoading(true);
+                try {
+                  await authAPI.deleteMe();
+                  await logout();
+                  navigate('/login');
+                } catch (err) {
+                  console.error('Failed to delete account', err);
+                  alert('Could not delete your account. Please try again or contact support.');
+                } finally {
+                  setActionLoading(false);
+                }
+              }}
+            >
+              Delete account
             </button>
           </div>
         </div>
