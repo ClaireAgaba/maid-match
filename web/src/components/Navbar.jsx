@@ -66,7 +66,7 @@ const Navbar = ({
     const isVerified = userProfile?.is_verified || userProfile?.verified;
 
     return (
-        <nav className="bg-white/80 backdrop-blur-md sticky top-0 z-50 border-b border-gray-100 shadow-sm pt-[env(safe-area-inset-top)]">
+        <nav className="bg-white/80 backdrop-blur-md sticky top-0 z-50 border-b border-gray-100 shadow-sm safe-top">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="flex items-center justify-between h-20">
                     {/* Logo */}
