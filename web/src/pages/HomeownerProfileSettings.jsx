@@ -269,7 +269,7 @@ const HomeownerProfileSettings = () => {
             Payments &amp; access
           </h2>
           <p className="text-sm text-gray-600 mb-3">
-            Choose how you want to use Maid Match. All payments are processed via secure Mobile Money.
+            Choose how you want to use Maid Match. All payments are processed securely.
           </p>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-700">
             <button
