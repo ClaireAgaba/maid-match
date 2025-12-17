@@ -6,8 +6,6 @@
   body {
     @apply text-gray-900 bg-brand-gradient-soft min-h-screen;
     background-attachment: fixed;
-    padding-top: constant(safe-area-inset-top);
-    padding-top: env(safe-area-inset-top);
     padding-right: constant(safe-area-inset-right);
     padding-right: env(safe-area-inset-right);
     padding-bottom: constant(safe-area-inset-bottom);
