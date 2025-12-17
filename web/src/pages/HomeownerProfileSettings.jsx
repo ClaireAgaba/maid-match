@@ -11,7 +11,7 @@ import {
 
 const HomeownerProfileSettings = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState({});
@@ -107,16 +107,13 @@ const HomeownerProfileSettings = () => {
     if (!ok) return;
     try {
       await authAPI.deleteMe();
+      await logout();
+      navigate('/login');
     } catch (e) {
       console.error('Error deleting account:', e);
       alert('Failed to delete account. Please try again.');
       return;
     }
-    localStorage.removeItem('user');
-    localStorage.removeItem('accessToken');
-    sessionStorage.removeItem('user');
-    sessionStorage.removeItem('accessToken');
-    window.location.href = '/login';
   };
 
   const handleChange = (e) => {

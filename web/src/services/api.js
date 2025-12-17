@@ -43,13 +43,18 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      // Handle unauthorized access
-      localStorage.removeItem('user');
-      localStorage.removeItem('accessToken');
-      sessionStorage.removeItem('user');
-      sessionStorage.removeItem('accessToken');
-      if (window.location.pathname !== '/login') {
-        window.location.href = '/login';
+      // Handle unauthorized access.
+      // Only clear auth + redirect if we actually had a token; this avoids
+      // “random logouts” caused by 401s on public/unauthenticated requests.
+      const token = getStoredToken();
+      if (token) {
+        localStorage.removeItem('user');
+        localStorage.removeItem('accessToken');
+        sessionStorage.removeItem('user');
+        sessionStorage.removeItem('accessToken');
+        if (window.location.pathname !== '/login') {
+          window.location.href = '/login';
+        }
       }
     }
     return Promise.reject(error);

@@ -15,26 +15,38 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Detect if we are running inside a Capacitor native shell.
-  // In the Android/iOS app, window.Capacitor is injected; in normal web it is undefined.
-  const isNativeApp = typeof window !== 'undefined' && !!window.Capacitor;
-
   const getStorage = () => {
-    return isNativeApp ? localStorage : sessionStorage;
+    return localStorage;
   };
 
   useEffect(() => {
-    // Check if user is logged in on mount
+    // Check if user is logged in on mount.
+    // Use localStorage for persistence; also migrate from sessionStorage if needed.
     const storage = getStorage();
     const storedUser = storage.getItem('user');
-    if (storedUser) {
+    const storedToken = storage.getItem('accessToken');
+
+    if (!storedUser) {
+      const sessionUser = sessionStorage.getItem('user');
+      const sessionToken = sessionStorage.getItem('accessToken');
+      if (sessionUser) storage.setItem('user', sessionUser);
+      if (sessionToken) storage.setItem('accessToken', sessionToken);
+      sessionStorage.removeItem('user');
+      sessionStorage.removeItem('accessToken');
+    }
+
+    const finalUser = storage.getItem('user');
+    if (finalUser) {
       try {
-        const parsed = JSON.parse(storedUser);
+        const parsed = JSON.parse(finalUser);
         setUser(parsed);
       } catch (e) {
-        // Clear corrupted user data that can't be parsed
         storage.removeItem('user');
+        storage.removeItem('accessToken');
       }
+    } else if (storedToken && !storedUser) {
+      // If we ever have a token but no user, clear it to avoid inconsistent state.
+      storage.removeItem('accessToken');
     }
     setLoading(false);
   }, []);

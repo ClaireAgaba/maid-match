@@ -26,7 +26,7 @@ const MAID_SERVICE_OPTIONS = [
 
 const MaidProfileSettings = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState({});
@@ -119,11 +119,8 @@ const MaidProfileSettings = () => {
       alert('Failed to delete account. Please try again.');
       return;
     }
-    localStorage.removeItem('user');
-    localStorage.removeItem('accessToken');
-    sessionStorage.removeItem('user');
-    sessionStorage.removeItem('accessToken');
-    window.location.href = '/login';
+    await logout();
+    navigate('/login');
   };
 
   // Local map of per-service starting pay, derived from the single

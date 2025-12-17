@@ -46,14 +46,14 @@ const ViewCompanyProfile = () => {
   }, [user?.username]);
 
   if (!profile) return (
-    <div className="max-w-5xl mx-auto p-6">
+    <div className="max-w-5xl mx-auto p-6 safe-top-8">
       <h1 className="text-2xl font-semibold mb-4">Company Profile</h1>
       <p className="text-gray-600">Loading...</p>
     </div>
   );
 
   return (
-    <div className="max-w-5xl mx-auto p-6 space-y-6">
+    <div className="max-w-5xl mx-auto p-6 space-y-6 safe-top-8">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <div className="h-14 w-14 rounded-full overflow-hidden border-2 border-gray-200">

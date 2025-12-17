@@ -87,14 +87,14 @@ const EditCompanyProfile = () => {
   };
 
   if (!profile) return (
-    <div className="max-w-5xl mx-auto p-6">
+    <div className="max-w-5xl mx-auto p-6 safe-top-8">
       <h1 className="text-2xl font-semibold mb-4">Edit Company Profile</h1>
       <p className="text-gray-600">Loading...</p>
     </div>
   );
 
   return (
-    <div className="max-w-5xl mx-auto p-6 space-y-6">
+    <div className="max-w-5xl mx-auto p-6 space-y-6 safe-top-8">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Edit Company Profile</h1>
         <button className="btn-secondary" onClick={() => navigate('/company/profile')}>Cancel</button>

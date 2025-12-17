@@ -70,7 +70,7 @@ const Navbar = ({
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="flex items-center justify-between h-20">
                     {/* Logo */}
-                    <div className="flex-shrink-0 flex items-center cursor-pointer" onClick={() => navigate('/')}>
+                    <div className="flex-shrink-0 flex items-center cursor-pointer" onClick={() => navigate('/dashboard')}>
                         <BrandLogo sizeClass="h-12" showText={true} />
                     </div>
 
@@ -89,7 +89,7 @@ const Navbar = ({
                                 )}
                             </button>
                             {isNotificationsOpen && (
-                                <div className="absolute right-0 mt-2 w-80 bg-white rounded-2xl shadow-xl border border-gray-100 py-2 overflow-hidden transform origin-top-right transition-all animate-in fade-in zoom-in-95 duration-200">
+                                <div className="absolute right-0 top-full mt-2 w-80 max-w-[calc(100vw-2rem)] bg-white rounded-2xl shadow-xl border border-gray-100 py-2 overflow-hidden transform origin-top-right transition-all animate-in fade-in zoom-in-95 duration-200">
                                     <div className="px-4 py-2 border-b border-gray-100 flex items-center justify-between">
                                         <p className="text-xs font-semibold text-gray-800">Notifications</p>
                                         {Array.isArray(visibleNotifications) && visibleNotifications.length > 0 ? (
@@ -169,7 +169,7 @@ const Navbar = ({
 
                             {/* Dropdown Menu */}
                             {isDropdownOpen && (
-                                <div className="absolute right-0 mt-2 w-72 bg-white rounded-2xl shadow-xl border border-gray-100 py-2 overflow-hidden transform origin-top-right transition-all animate-in fade-in zoom-in-95 duration-200">
+                                <div className="absolute right-0 top-full mt-2 w-72 bg-white rounded-2xl shadow-xl border border-gray-100 py-2 overflow-hidden transform origin-top-right transition-all animate-in fade-in zoom-in-95 duration-200">
                                     {/* Header Section */}
                                     <div className="px-6 py-4 bg-gradient-to-r from-primary-50 to-secondary-50 border-b border-gray-100">
                                         <div className="flex items-center gap-3">
