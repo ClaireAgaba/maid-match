@@ -8,3 +8,6 @@ npm run build
 cd ../mobile
 npm ci
 npx cap sync ios
+
+cd ios/App
+pod install
