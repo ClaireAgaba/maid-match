@@ -44,9 +44,16 @@
   .text-gradient {
     @apply bg-clip-text text-transparent bg-gradient-to-r from-primary-600 to-secondary-600;
   }
+}
 
+@layer utilities {
   .safe-top {
     padding-top: constant(safe-area-inset-top);
     padding-top: env(safe-area-inset-top);
+  }
+
+  .safe-top-8 {
+    padding-top: calc(constant(safe-area-inset-top) + 2rem);
+    padding-top: calc(env(safe-area-inset-top) + 2rem);
   }
 }
