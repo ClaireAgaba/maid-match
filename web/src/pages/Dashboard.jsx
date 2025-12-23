@@ -885,8 +885,8 @@ const Dashboard = () => {
         items.push({
           id: 'maid-onboarding-unpaid',
           kind: 'billing',
-          title: 'Onboarding fee not paid',
-          body: 'Pay the UGX 5,000 onboarding fee so you can apply for maid jobs.',
+          title: 'Onboarding service payment needed',
+          body: 'Complete the UGX 5,000 onboarding service payment to start applying for maid jobs.',
           onClick: () => {
             setOnboardingMessage('');
             setShowOnboardingPaymentModal(true);
@@ -900,8 +900,8 @@ const Dashboard = () => {
         items.push({
           id: 'company-no-plan',
           kind: 'billing',
-          title: 'No active company plan',
-          body: 'Activate a monthly plan so you can show interest in cleaning jobs.',
+          title: 'Company service payment needed',
+          body: 'Pay the company service plan fee so you can show interest in homeowner job requests.',
           onClick: () => {
             setShowCompanyPaymentModal(true);
           },
@@ -932,8 +932,8 @@ const Dashboard = () => {
         items.push({
           id: 'nurse-premium-unpaid',
           kind: 'billing',
-          title: 'Premium onboarding not paid',
-          body: 'Pay the UGX 10,000 premium onboarding fee to start browsing home nursing jobs.',
+          title: 'Premium onboarding service payment needed',
+          body: 'Complete the UGX 10,000 premium onboarding service payment to start receiving home nursing job requests.',
           onClick: () => {
             setNurseOnboardingMessage('');
             setShowNurseOnboardingModal(true);
@@ -1152,7 +1152,7 @@ const Dashboard = () => {
           <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 px-4">
             <div className="bg-white rounded-2xl shadow-xl max-w-md w-full">
               <div className="flex items-center justify-between px-5 py-4 border-b">
-                <h3 className="text-lg font-semibold text-gray-900">Pay Premium Onboarding</h3>
+                <h3 className="text-lg font-semibold text-gray-900">Complete Premium Onboarding Payment</h3>
                 <button
                   type="button"
                   className="text-gray-400 hover:text-gray-600"
@@ -1166,7 +1166,7 @@ const Dashboard = () => {
               </div>
               <div className="px-5 py-4 space-y-4">
                 <p className="text-sm text-gray-600">
-                  Pay a one-time <span className="font-semibold">premium onboarding fee of UGX 10,000</span> via Mobile Money. This service is premium and the platform fee reflects that.
+                  Pay a one-time <span className="font-semibold">premium onboarding service payment of UGX 10,000</span> via Mobile Money.
                 </p>
                 {nurseOnboardingMessage && (
                   <p className="text-sm bg-red-50 border border-red-200 text-red-800 rounded-lg px-3 py-2">
@@ -1230,10 +1230,11 @@ const Dashboard = () => {
                     }
                   }}
                 >
-                  {nurseOnboardingSubmitting ? 'Starting payment...' : 'Pay now'}
+                  {nurseOnboardingSubmitting ? 'Starting payment...' : 'Pay UGX 10,000 via Mobile Money'}
                 </button>
                 <p className="text-[11px] text-gray-500 mt-1">
-                  You will receive a Mobile Money prompt on your phone to enter your PIN. MaidMatch does not see or store your PIN.
+                  You will receive a Mobile Money prompt on your phone to enter your PIN.
+                  MaidMatch does not see or store your PIN.
                 </p>
               </div>
             </div>
@@ -1245,7 +1246,7 @@ const Dashboard = () => {
           <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 px-4">
             <div className="bg-white rounded-2xl shadow-xl max-w-md w-full">
               <div className="flex items-center justify-between px-5 py-4 border-b">
-                <h3 className="text-lg font-semibold text-gray-900">Activate Company Plan</h3>
+                <h3 className="text-lg font-semibold text-gray-900">Pay Company Service Plan Fee</h3>
                 <button
                   type="button"
                   className="text-gray-400 hover:text-gray-600"
@@ -1259,7 +1260,7 @@ const Dashboard = () => {
               </div>
               <div className="px-5 py-4 space-y-4">
                 <p className="text-sm text-gray-600">
-                  Choose a plan and pay via Mobile Money. Paid plans let your company show interest in homeowner job requests.
+                  Choose a service plan fee and pay via Mobile Money. Paying this service fee lets your company show interest in homeowner job requests.
                 </p>
                 {companyPaymentMessage && (
                   <p className="text-sm bg-red-50 border border-red-200 text-red-800 rounded-lg px-3 py-2">
@@ -1278,7 +1279,7 @@ const Dashboard = () => {
                           checked={companyPaymentPlan === 'monthly'}
                           onChange={() => setCompanyPaymentPlan('monthly')}
                         />
-                        <span>Monthly — <span className="font-semibold">UGX 30,000</span></span>
+                        <span>Monthly service plan fee — <span className="font-semibold">UGX 30,000</span></span>
                       </label>
                       <label
                         className="flex items-center gap-1 opacity-60 cursor-not-allowed"
@@ -1290,7 +1291,7 @@ const Dashboard = () => {
                           value="annual"
                           disabled
                         />
-                        <span>Annual — <span className="font-semibold">UGX 342,000</span> (coming soon)</span>
+                        <span>Annual service plan fee — <span className="font-semibold">UGX 342,000</span> (coming soon)</span>
                       </label>
                     </div>
                   </div>
@@ -1350,7 +1351,7 @@ const Dashboard = () => {
                     }
                   }}
                 >
-                  {companyPaymentSubmitting ? 'Starting payment...' : 'Pay now'}
+                  {companyPaymentSubmitting ? 'Starting payment...' : 'Pay service fee via Mobile Money'}
                 </button>
                 <p className="text-[11px] text-gray-500 mt-1">
                   You will receive a Mobile Money prompt on your phone to enter your PIN. MaidMatch does not see or store your PIN.
@@ -1365,7 +1366,7 @@ const Dashboard = () => {
           <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 px-4">
             <div className="bg-white rounded-2xl shadow-xl max-w-md w-full">
               <div className="flex items-center justify-between px-5 py-4 border-b">
-                <h3 className="text-lg font-semibold text-gray-900">Pay Onboarding Fee</h3>
+                <h3 className="text-lg font-semibold text-gray-900">Complete Onboarding Payment</h3>
                 <button
                   type="button"
                   className="text-gray-400 hover:text-gray-600"
@@ -1379,7 +1380,7 @@ const Dashboard = () => {
               </div>
               <div className="px-5 py-4 space-y-4">
                 <p className="text-sm text-gray-600">
-                  Pay a one-time onboarding fee of <span className="font-semibold">UGX 5,000</span> via Mobile Money.
+                  Pay a one-time onboarding service payment of <span className="font-semibold">UGX 5,000</span> via Mobile Money.
                 </p>
                 {onboardingMessage && (
                   <p className="text-sm bg-red-50 border border-red-200 text-red-800 rounded-lg px-3 py-2">
@@ -1449,7 +1450,7 @@ const Dashboard = () => {
                     }
                   }}
                 >
-                  {onboardingSubmitting ? 'Starting payment...' : 'Pay UGX 5,000'}
+                  {onboardingSubmitting ? 'Starting payment...' : 'Pay UGX 5,000 via Mobile Money'}
                 </button>
                 <p className="text-[11px] text-gray-500 mt-1">
                   You will receive a Mobile Money prompt on your phone to enter your PIN. MaidMatch does not see or
@@ -1909,10 +1910,10 @@ const Dashboard = () => {
         {isMaid && maidProfile && (
           <div className="card mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-1">Onboarding fee</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-1">Onboarding payment</h3>
               {maidProfile.onboarding_fee_paid ? (
                 <p className="text-sm text-gray-600">
-                  Your one-time onboarding fee has been recorded
+                  Your one-time onboarding payment has been recorded
                   {maidProfile.onboarding_fee_paid_at && (
                     <>
                       {' '}as paid on{' '}
@@ -1922,14 +1923,14 @@ const Dashboard = () => {
                 </p>
               ) : (
                 <p className="text-sm text-gray-600">
-                  Pay a one-time onboarding fee of <span className="font-semibold">UGX 5,000</span> to complete your account setup and start applying for jobs.
+                  Complete a one-time onboarding service payment of <span className="font-semibold">UGX 5,000</span> to finish your account setup and start applying for jobs.
                 </p>
               )}
             </div>
             <div className="flex flex-col items-start sm:items-end gap-2">
               {maidProfile.onboarding_fee_paid ? (
                 <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium bg-green-50 text-green-700 border border-green-200">
-                  <ShieldCheck className="h-3.5 w-3.5" /> Onboarding fee paid
+                  <ShieldCheck className="h-3.5 w-3.5" /> Onboarding payment completed
                 </span>
               ) : (
                 <button
@@ -1940,7 +1941,7 @@ const Dashboard = () => {
                   }}
                   className="btn-primary text-sm flex items-center justify-center px-4 py-2"
                 >
-                  Pay onboarding fee (UGX 5,000)
+                  Pay onboarding (UGX 5,000)
                 </button>
               )}
             </div>
@@ -2000,20 +2001,20 @@ const Dashboard = () => {
                   </span>
                 </div>
                 <div className="mt-2 text-xs text-gray-600">
-                  <span className="font-semibold">Payment plan status: </span>
+                  <span className="font-semibold">Service plan status: </span>
                   {(() => {
                     const hasSub = companyProfile.has_active_subscription;
                     const type = companyProfile.subscription_type;
                     const exp = companyProfile.subscription_expires_at ? new Date(companyProfile.subscription_expires_at) : null;
                     if (hasSub && exp && exp > new Date()) {
                       if (type === 'annual') {
-                        return `Annual plan active until ${exp.toLocaleDateString()}`;
+                        return `Annual service plan active until ${exp.toLocaleDateString()}`;
                       }
                       if (type === 'monthly') {
-                        return `Monthly plan active until ${exp.toLocaleDateString()}`;
+                        return `Monthly service plan active until ${exp.toLocaleDateString()}`;
                       }
                     }
-                    return 'No active plan. Activate a plan so you can show interest in jobs.';
+                    return 'No active service plan. Pay the service plan fee so you can show interest in job requests.';
                   })()}
                 </div>
                 {!companyProfile.has_active_subscription && (
@@ -2022,7 +2023,7 @@ const Dashboard = () => {
                     onClick={() => setShowCompanyPaymentModal(true)}
                     className="mt-1 inline-flex items-center text-[11px] font-medium text-primary-600 hover:text-primary-700 underline"
                   >
-                    Activate plan
+                    Pay service plan fee
                   </button>
                 )}
               </div>
@@ -2250,27 +2251,27 @@ const Dashboard = () => {
                         <CreditCard className="h-5 w-5" />
                       </div>
                       <div>
-                        <p className="text-xs text-gray-500 uppercase font-semibold tracking-wider">Payment plan status</p>
+                        <p className="text-xs text-gray-500 uppercase font-semibold tracking-wider">Service plan status</p>
                         <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
                           <p className="text-sm font-medium text-gray-900">
                             {(() => {
                               const hp = homeownerProfile;
-                              if (!hp) return 'No active plan';
+                              if (!hp) return 'No active service plan';
                               const now = new Date();
                               const exp = hp.subscription_expires_at ? new Date(hp.subscription_expires_at) : null;
                               const hasSub = hp.subscription_type && hp.subscription_type !== 'none' && exp && exp > now;
                               if (hasSub) {
                                 if (hp.subscription_type === 'monthly') {
-                                  return `Monthly subscription active until ${exp.toLocaleDateString()}`;
+                                  return `Monthly service plan active until ${exp.toLocaleDateString()}`;
                                 }
                                 if (hp.subscription_type === 'day_pass') {
-                                  return `24 hour pass active until ${exp.toLocaleString()}`;
+                                  return `24-hour service plan active until ${exp.toLocaleString()}`;
                                 }
                               }
                               if (hp.has_live_in_credit) {
-                                return 'Live-in placement credit available for your next hire';
+                                return 'Live-in placement service credit available for your next hire';
                               }
-                              return 'No active plan';
+                              return 'No active service plan';
                             })()}
                           </p>
                           <button
@@ -2278,7 +2279,7 @@ const Dashboard = () => {
                             onClick={() => navigate('/homeowner-profile-settings')}
                             className="text-xs text-primary-600 hover:text-primary-700 underline font-medium"
                           >
-                            View payment plans
+                            View service plans
                           </button>
                         </div>
                       </div>
@@ -2294,10 +2295,10 @@ const Dashboard = () => {
         {isHomeowner && !homeownerHasActivePlan && (
           <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>
-              <p className="text-sm font-semibold text-amber-900">Your requests are currently hidden from service providers</p>
+              <p className="text-sm font-semibold text-amber-900">Your requests are currently paused for service providers</p>
               <p className="text-sm text-amber-800 mt-1">
                 You can still create and manage your service requests, but maids and other providers will not see them
-                until you purchase a payment plan.
+                until you pay the service plan fee.
               </p>
             </div>
             <div className="flex-shrink-0">
@@ -2306,7 +2307,7 @@ const Dashboard = () => {
                 onClick={() => navigate('/homeowner-profile-settings')}
                 className="btn-primary text-xs sm:text-sm px-4 py-2"
               >
-                Pay so providers can see my requests
+                Pay service plan fee
               </button>
             </div>
           </div>
@@ -2605,7 +2606,7 @@ const Dashboard = () => {
                 <h3 className="text-lg font-semibold text-gray-900 mb-1">Premium onboarding</h3>
                 {nurseProfile.onboarding_fee_paid ? (
                   <p className="text-sm text-gray-600">
-                    Your premium onboarding fee has been recorded as paid
+                    Your premium onboarding payment has been recorded
                     {nurseProfile.onboarding_fee_paid_at && (
                       <>
                         {' '}on{' '}
@@ -2615,14 +2616,14 @@ const Dashboard = () => {
                   </p>
                 ) : (
                   <p className="text-sm text-gray-600">
-                    Pay a one-time <span className="font-semibold">premium onboarding fee of UGX 10,000</span> to unlock home nursing job browsing on MaidMatch.
+                    Complete a one-time <span className="font-semibold">premium onboarding service payment of UGX 10,000</span> to finish setup and start receiving job requests.
                   </p>
                 )}
               </div>
               <div className="flex flex-col items-start sm:items-end gap-2">
                 {nurseProfile.onboarding_fee_paid ? (
                   <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium bg-green-50 text-green-700 border border-green-200">
-                    <ShieldCheck className="h-3.5 w-3.5" /> Premium onboarding paid
+                    <ShieldCheck className="h-3.5 w-3.5" /> Premium onboarding payment completed
                   </span>
                 ) : (
                   <button
@@ -2856,7 +2857,7 @@ const Dashboard = () => {
                 <button
                   onClick={async () => {
                     if (!nurseProfile?.onboarding_fee_paid) {
-                      alert('Premium onboarding is required before you can browse home nursing jobs.');
+                      alert('Premium onboarding service payment is required before you can receive home nursing job requests.');
                       setNurseOnboardingMessage('');
                       setShowNurseOnboardingModal(true);
                       return;

@@ -263,10 +263,10 @@ const HomeownerProfileSettings = () => {
         <div className="card">
           <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
             <CreditCard className="h-5 w-5 mr-2 text-primary-600" />
-            Payments &amp; access
+            Service payments
           </h2>
           <p className="text-sm text-gray-600 mb-3">
-            Choose how you want to use Maid Match. All payments are processed securely.
+            Choose the service fee that applies to what you want to do next. Payments are processed securely.
           </p>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-700">
             <button
@@ -280,9 +280,9 @@ const HomeownerProfileSettings = () => {
               }}
               className="p-3 rounded-lg border border-gray-200 bg-gray-50 hover:border-primary-300 hover:bg-primary-50/40 transition text-left"
             >
-              <p className="font-semibold mb-1">Live-in placement fee</p>
+              <p className="font-semibold mb-1">Live-in placement service fee</p>
               <p className="text-xs text-gray-500 mb-1">UGX 25,000 once per live-in maid hired.</p>
-              <p className="text-[11px] text-gray-500">Pay when you are ready to hire a live-in maid through the app.</p>
+              <p className="text-[11px] text-gray-500">Pay when you are ready to proceed with a live-in placement request.</p>
             </button>
             <button
               type="button"
@@ -295,9 +295,9 @@ const HomeownerProfileSettings = () => {
               }}
               className="p-3 rounded-lg border border-gray-200 bg-gray-50 hover:border-primary-300 hover:bg-primary-50/40 transition text-left"
             >
-              <p className="font-semibold mb-1">Monthly access</p>
-              <p className="text-xs text-gray-500 mb-1">UGX 20,000 for 30 days.</p>
-              <p className="text-[11px] text-gray-500">Browse maids, companies &amp; nurses and schedule services.</p>
+              <p className="font-semibold mb-1">Monthly service plan fee</p>
+              <p className="text-xs text-gray-500 mb-1">UGX 20,000 (valid for 30 days).</p>
+              <p className="text-[11px] text-gray-500">Applies to ongoing service requests within the plan period.</p>
             </button>
             <button
               type="button"
@@ -310,9 +310,9 @@ const HomeownerProfileSettings = () => {
               }}
               className="p-3 rounded-lg border border-gray-200 bg-gray-50 hover:border-primary-300 hover:bg-primary-50/40 transition text-left"
             >
-              <p className="font-semibold mb-1">24 hour pass</p>
-              <p className="text-xs text-gray-500 mb-1">UGX 5,000 for 24 hours.</p>
-              <p className="text-[11px] text-gray-500">Short-term access to view contacts and schedule a one-off service.</p>
+              <p className="font-semibold mb-1">24-hour service plan fee</p>
+              <p className="text-xs text-gray-500 mb-1">UGX 5,000 (valid for 24 hours).</p>
+              <p className="text-[11px] text-gray-500">Applies to short-term service requests within the plan period.</p>
             </button>
           </div>
         </div>
@@ -731,9 +731,9 @@ const HomeownerProfileSettings = () => {
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-1">Plan</label>
                   <p className="text-sm font-semibold text-gray-900">
-                    {selectedPlan === 'live_in' && 'Live-in placement fee (UGX 25,000)'}
-                    {selectedPlan === 'monthly' && 'Monthly access (UGX 20,000)'}
-                    {selectedPlan === 'day_pass' && '24 hour pass (UGX 5,000)'}
+                    {selectedPlan === 'live_in' && 'Live-in placement service fee (UGX 25,000)'}
+                    {selectedPlan === 'monthly' && 'Monthly service plan fee (UGX 20,000)'}
+                    {selectedPlan === 'day_pass' && '24-hour service plan fee (UGX 5,000)'}
                   </p>
                 </div>
                 <div>
@@ -794,7 +794,7 @@ const HomeownerProfileSettings = () => {
                   }
                 }}
               >
-                {paymentSubmitting ? 'Starting payment...' : 'Pay via Mobile Money'}
+                {paymentSubmitting ? 'Starting payment...' : 'Pay service fee via Mobile Money'}
               </button>
               <p className="text-[11px] text-gray-500 mt-1">
                 You will receive a Mobile Money prompt on your phone to enter your PIN. Maid Match does not see or store your PIN.
