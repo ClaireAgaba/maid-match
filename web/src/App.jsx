@@ -6,7 +6,7 @@ import Register from './pages/Register';
 import Terms from './pages/Terms';
 import Privacy from './pages/Privacy';
 import SetPassword from './pages/SetPassword';
-import Dashboard from './pages/Dashboard';
+import DashboardDispatcher from './pages/DashboardDispatcher';
 import ProfileSettings from './pages/ProfileSettings';
 import MaidProfileSettings from './pages/MaidProfileSettings';
 import HomeownerProfileSettings from './pages/HomeownerProfileSettings';
@@ -63,7 +63,7 @@ function App() {
             path="/dashboard"
             element={
               <ProtectedRoute>
-                <Dashboard />
+                <DashboardDispatcher />
               </ProtectedRoute>
             }
           />

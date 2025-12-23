@@ -12,7 +12,7 @@ import {
   CreditCard, HelpCircle, FileText, Search
 } from 'lucide-react';
 
-const Dashboard = () => {
+const DashboardLegacy = () => {
   const { user, logout, isHomeowner, isMaid, isAdmin, isHomeNurse } = useAuth();
   const navigate = useNavigate();
   const [stats, setStats] = useState({
@@ -3509,5 +3509,7 @@ const Dashboard = () => {
     </div>
   );
 };
+
+const Dashboard = DashboardLegacy;
 
 export default Dashboard;
